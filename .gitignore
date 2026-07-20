@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# environment
+.venv/
+
+# test artifacts
+plugins/
+mcnet.yaml
+mcnet.lock.json
