@@ -41,12 +41,21 @@ class HangarAPI(BaseApi):
         if not results:
             return None
 
-        download = results[0]["downloads"][platform]
+        version = results[0]
+        platform_download = version["downloads"].get(platform)
+
+        # Some plugins are hosted off Hangar (GitHub, Patreon, ...): they have
+        # no fileInfo, only an external link. We can't download or verify those,
+        # so treat them as unavailable.
+        if platform_download is None or platform_download["fileInfo"] is None:
+            return None
+
+        file_info = platform_download["fileInfo"]
 
         return Resolved(
-            filename=download["fileInfo"]["name"],
-            url=download["downloadUrl"] or download["externalUrl"],
-            hash=download["fileInfo"]["sha256Hash"],
+            filename=file_info["name"],
+            url=platform_download["downloadUrl"],
+            hash=file_info["sha256Hash"],
             algorithm="sha256",
-            version=results[0]["name"],
+            version=version["name"],
         )
