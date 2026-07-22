@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from mcnet import errors
+from mcnet.core import errors
 from mcnet.core.models import Manifest, Plugin, Server
 
 

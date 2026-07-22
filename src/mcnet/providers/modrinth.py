@@ -2,9 +2,9 @@ import json
 
 import httpx
 
-from mcnet import errors
-from mcnet.sources.baseApi import BaseApi, Resolved
-from mcnet.sources.platform import MODRINTH
+from mcnet.core import errors
+from mcnet.providers.base import BaseApi, Resolved
+from mcnet.providers.platform import MODRINTH
 
 
 class ModrinthAPI(BaseApi):

@@ -1,8 +1,8 @@
 import httpx
 
-from mcnet import errors
-from mcnet.sources.baseApi import BaseApi, Resolved
-from mcnet.sources.platform import HANGAR
+from mcnet.core import errors
+from mcnet.providers.base import BaseApi, Resolved
+from mcnet.providers.platform import HANGAR
 
 
 class HangarAPI(BaseApi):

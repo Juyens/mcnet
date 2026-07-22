@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 
-from mcnet import errors
+from mcnet.core import errors
 
 
 def download(url: str, hash: str, algorithm: str, filename: str, dest: Path):

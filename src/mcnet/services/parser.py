@@ -1,5 +1,6 @@
-from mcnet import errors
 from urllib.parse import urlparse
+
+from mcnet.core import errors
 
 
 def parse_list(value: str) -> list[str]:

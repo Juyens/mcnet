@@ -3,12 +3,12 @@ from pathlib import Path
 import httpx
 import yaml
 
-from mcnet import errors, results
-from mcnet.core import parser
-from mcnet.core.lock import load_lock, save_lock
-from mcnet.core.manifest import find_manifest, load_manifest, save_manifest
+from mcnet.core import errors, results
 from mcnet.core.models import Plugin, Server
-from mcnet.core.plugin import install_fresh, install_from_lock
+from mcnet.services import parser
+from mcnet.services.install import install_fresh, install_from_lock
+from mcnet.services.lock import load_lock, save_lock
+from mcnet.services.manifest import find_manifest, load_manifest, save_manifest
 
 
 def mcnet_init(project_name: str, mc_version: str):

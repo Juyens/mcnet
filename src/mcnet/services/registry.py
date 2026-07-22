@@ -1,7 +1,7 @@
-from mcnet import errors
-from mcnet.sources.baseApi import BaseApi
-from mcnet.sources.hangar import HangarAPI
-from mcnet.sources.modrinth import ModrinthAPI
+from mcnet.core import errors
+from mcnet.providers.base import BaseApi
+from mcnet.providers.hangar import HangarAPI
+from mcnet.providers.modrinth import ModrinthAPI
 
 _registry = {
     "modrinth": ModrinthAPI,

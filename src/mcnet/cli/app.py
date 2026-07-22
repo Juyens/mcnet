@@ -1,6 +1,7 @@
 import typer
 
-from mcnet import commands, errors, log
+from mcnet.cli import commands
+from mcnet.core import errors, log
 
 app = typer.Typer()
 

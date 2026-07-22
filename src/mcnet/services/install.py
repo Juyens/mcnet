@@ -1,8 +1,8 @@
 from pathlib import Path
 
+from mcnet.core.download import download
 from mcnet.core.models import LockEntry, Plugin, Server
-from mcnet.sources import registry
-from mcnet.sources.download import download
+from mcnet.services import registry
 
 
 def install_fresh(
