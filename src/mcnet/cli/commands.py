@@ -8,6 +8,7 @@ from mcnet.core.download import download_all
 from mcnet.core.file import file_matches
 from mcnet.core.models import DownloadTask, LockEntry, Plugin, Server
 from mcnet.services import parser
+from mcnet.services.git import ensure_gitignore
 from mcnet.services.install import install_fresh
 from mcnet.services.lock import load_lock, save_lock
 from mcnet.services.manifest import find_manifest, load_manifest, save_manifest
@@ -34,6 +35,8 @@ def mcnet_init(project_name: str, mc_version: str):
     path.write_text(
         yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
     )
+
+    ensure_gitignore(Path.cwd())
 
 
 def mcnet_add_server(server_name: str, loader: str, port: int):
