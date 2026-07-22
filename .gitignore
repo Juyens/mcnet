@@ -16,3 +16,8 @@ plugins/
 mcnet.yaml
 mcnet.lock.json
 /sandbox/
+
+# build
+/build/
+/dist/
+*.spec
