@@ -248,3 +248,56 @@ def mcnet_remove_plugin(slug: str, server_names: str):
     save_lock(root, lock)
 
     return results.RemovePluginResult(removed, skipped)
+
+
+def mcnet_update(slug: str | None = None):
+    path = find_manifest()
+    root = path.parent
+    manifest = load_manifest(path)
+    lock = load_lock(root)
+
+    updated = []
+    unchanged = []
+    skipped = {}
+    touched = False
+
+    for name, server in manifest.servers.items():
+        for plugin in server.plugins:
+            if slug is not None and plugin.slug != slug:
+                continue
+
+            touched = True
+            key = f"{name}/{plugin.slug}"
+
+            old = lock.get(name, {}).get(plugin.slug)
+
+            if old:
+                old_version = old.version
+            else:
+                old_version = None
+
+            try:
+                filename = install_fresh(
+                    root, name, server, plugin, manifest.mc_version, lock
+                )
+            except (errors.McnetError, httpx.HTTPError) as e:
+                skipped[key] = f"update failed: {e}"
+                continue
+
+            if filename is None:
+                skipped[key] = f"no {server.loader} version"
+                continue
+
+            new_version = lock[name][plugin.slug].version
+
+            if old_version != new_version:
+                updated.append(f"{key}: {old_version} → {new_version}")
+            else:
+                unchanged.append(key)
+
+    if slug is not None and not touched:
+        raise errors.McnetError(f"'{slug}' not found in the manifest")
+
+    save_lock(root, lock)
+
+    return results.UpdateResult(updated, unchanged, skipped)

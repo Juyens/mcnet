@@ -24,3 +24,10 @@ class SyncResult:
 class RemovePluginResult:
     removed: list = field(default_factory=list)
     skipped: list = field(default_factory=list)
+
+
+@dataclass
+class UpdateResult:
+    updated: list = field(default_factory=list)
+    unchanged: list = field(default_factory=list)
+    skipped: dict = field(default_factory=dict)

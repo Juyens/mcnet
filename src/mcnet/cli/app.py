@@ -156,8 +156,31 @@ def sync():
 
 
 @app.command()
-def update_plugin():
-    """Check for newer plugin versions and update the lockfile."""
+def update(
+    slug: str = typer.Argument(None, help="Plugin to update (all if omitted)"),
+):
+    """Update plugins to their latest version.
+
+    Updates every plugin if no slug is given, or just the named one.
+    Rewrites the lockfile with the new versions.
+    """
+    try:
+        result = commands.mcnet_update(slug)
+    except errors.McnetError as e:
+        log.err(str(e))
+        raise typer.Exit(code=1)
+
+    for line in result.updated:
+        log.ok(f"↑ {line}")
+
+    for key in result.unchanged:
+        log.info(f"{key} (up to date)")
+
+    for key, reason in result.skipped.items():
+        log.warn(f"skipped {key}: {reason}")
+
+    if not result.updated:
+        log.info("everything up to date")
 
 
 @app.command()
