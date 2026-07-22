@@ -77,17 +77,17 @@ def mcnet_edit_server(server_name: str, new_name: str, loader: str, port: int):
             raise errors.McnetError(f"server '{new_name}' already exists")
 
         manifest.servers[new_name] = manifest.servers.pop(server_name)
-        changes.append(f"server_name: {server_name} → {new_name}")
+        changes.append(f"server_name: {server_name} -> {new_name}")
 
     if loader is not None:
-        changes.append(f"loader: {server.loader} → {loader}")
+        changes.append(f"loader: {server.loader} -> {loader}")
         server.loader = loader
 
     if port is not None and port != server.port:
         for other, cfg in manifest.servers.items():
             if other != server_name and cfg.port == port:
                 raise errors.McnetError(f"port {port} already used by '{other}'")
-        changes.append(f"port: {server.port} → {port}")
+        changes.append(f"port: {server.port} -> {port}")
         server.port = port
 
     if changes:
@@ -137,11 +137,11 @@ def mcnet_add_plugin(url: str, server_names: str):
 
         loader = manifest.servers[name].loader
 
-        resolved = install_fresh(
+        filename, _ = install_fresh(
             root, name, server, Plugin(source, slug), manifest.mc_version, lock
         )
 
-        if resolved is None:
+        if filename is None:
             skipped[name] = f"no {loader} version for MC {manifest.mc_version}"
         else:
             manifest.servers[name].plugins.append(Plugin(source, slug))
@@ -160,6 +160,7 @@ def mcnet_sync():
     lock = load_lock(root)
 
     downloaded = []
+    up_to_date = []
     skipped = {}
 
     for name, server in manifest.servers.items():
@@ -167,23 +168,25 @@ def mcnet_sync():
             try:
                 locked = lock.get(name, {}).get(plugin.slug)
                 if locked is not None:
-                    filename = install_from_lock(root, name, locked)
+                    filename, did_download = install_from_lock(root, name, locked)
                 else:
-                    filename = install_fresh(
+                    filename, did_download = install_fresh(
                         root, name, server, plugin, manifest.mc_version, lock
                     )
 
                 if filename is None:
                     skipped[f"{name}/{plugin.slug}"] = f"no {server.loader} version"
-                else:
+                elif did_download:
                     downloaded.append(f"{name}/{filename}")
+                else:
+                    up_to_date.append(f"{name}/{filename}")
 
             except (errors.McnetError, httpx.HTTPError) as e:
                 skipped[f"{name}/{plugin.slug}"] = f"download failed: {e}"
 
     save_lock(root, lock)
 
-    return results.SyncResult(downloaded, skipped)
+    return results.SyncResult(downloaded, up_to_date, skipped)
 
 
 def mcnet_remove_server(server_name: str):
@@ -277,7 +280,7 @@ def mcnet_update(slug: str | None = None):
                 old_version = None
 
             try:
-                filename = install_fresh(
+                filename, _ = install_fresh(
                     root, name, server, plugin, manifest.mc_version, lock
                 )
             except (errors.McnetError, httpx.HTTPError) as e:
@@ -291,7 +294,7 @@ def mcnet_update(slug: str | None = None):
             new_version = lock[name][plugin.slug].version
 
             if old_version != new_version:
-                updated.append(f"{key}: {old_version} → {new_version}")
+                updated.append(f"{key}: {old_version} -> {new_version}")
             else:
                 unchanged.append(key)
 

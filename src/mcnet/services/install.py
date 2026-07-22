@@ -12,19 +12,21 @@ def install_fresh(
     plugin: Plugin,
     mc_version: str,
     lock: dict,
-) -> str | None:
+) -> tuple[str | None, bool]:
     api = registry.get_client(plugin.source)
     resolved = api.resolve(plugin.slug, server.loader, mc_version)
 
     if resolved is None:
-        return None
+        return None, False
 
     dest = root / server_name / "plugins" / resolved.filename
 
+    did_download = False
     if not file_matches(dest, resolved.hash, resolved.algorithm):
         download(
             resolved.url, resolved.hash, resolved.algorithm, resolved.filename, dest
         )
+        did_download = True
 
     if server_name not in lock:
         lock[server_name] = {}
@@ -38,14 +40,15 @@ def install_fresh(
         url=resolved.url,
     )
 
-    return resolved.filename
+    return resolved.filename, did_download
 
 
-def install_from_lock(root, server_name, entry: LockEntry) -> str | None:
+def install_from_lock(root, server_name, entry: LockEntry) -> tuple[str | None, bool]:
     dest = root / server_name / "plugins" / entry.filename
 
     if file_matches(dest, entry.hash, entry.algorithm):
-        return entry.filename
+        return entry.filename, False
 
     download(entry.url, entry.hash, entry.algorithm, entry.filename, dest)
-    return entry.filename
+
+    return entry.filename, True

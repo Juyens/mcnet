@@ -104,7 +104,7 @@ def list():
         return
 
     for name, cfg in servers.items():
-        typer.echo(f"\t{name:<10} → {cfg.loader:<10} → {cfg.port}")
+        typer.echo(f"\t{name:<10} | {cfg.loader:<10} | {cfg.port}")
 
 
 @app.command()
@@ -144,15 +144,17 @@ def sync():
         log.err(str(e))
         raise typer.Exit(code=1)
 
+    for line in result.downloaded:
+        log.ok(f"+ {line}")
+
     for key, reason in result.skipped.items():
         log.warn(f"skipped {key}: {reason}")
 
-    if not result.downloaded and not result.skipped:
+    if result.up_to_date:
+        log.info(f"{len(result.up_to_date)} already up to date")
+
+    if not result.downloaded and not result.skipped and not result.up_to_date:
         log.info("nothing to sync (no plugins in manifest)")
-    elif not result.downloaded:
-        log.warn("no plugins downloaded — check the skipped list above")
-    else:
-        log.ok(f"downloaded {len(result.downloaded)} plugin(s)")
 
 
 @app.command()
@@ -171,7 +173,7 @@ def update(
         raise typer.Exit(code=1)
 
     for line in result.updated:
-        log.ok(f"↑ {line}")
+        log.ok(f"updated {line}")
 
     for key in result.unchanged:
         log.info(f"{key} (up to date)")

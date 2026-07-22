@@ -17,6 +17,7 @@ class AddPluginResult:
 @dataclass
 class SyncResult:
     downloaded: list = field(default_factory=list)
+    up_to_date: list = field(default_factory=list)
     skipped: dict = field(default_factory=dict)
 
 
