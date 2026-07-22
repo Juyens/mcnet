@@ -184,3 +184,67 @@ def mcnet_sync():
     save_lock(root, lock)
 
     return results.SyncResult(downloaded, skipped)
+
+
+def mcnet_remove_server(server_name: str):
+    root = find_manifest().parent
+    manifest = load_manifest()
+
+    if server_name not in manifest.servers:
+        raise errors.McnetError(f"server '{server_name}' not found")
+
+    del manifest.servers[server_name]
+    save_manifest(manifest)
+
+    lock = load_lock(root)
+    lock.pop(server_name, None)
+    save_lock(root, lock)
+
+
+def mcnet_remove_plugin(slug: str, server_names: str):
+    root = find_manifest().parent
+    manifest = load_manifest()
+    lock = load_lock(root)
+
+    names = parser.parse_list(server_names)
+
+    unknown = []
+
+    for name in names:
+        if name not in manifest.servers:
+            unknown.append(name)
+
+    if unknown:
+        raise errors.McnetError(f"unknown servers: {', '.join(unknown)}")
+
+    removed = []
+    skipped = []
+
+    for name in names:
+        server = manifest.servers[name]
+
+        before = len(server.plugins)
+
+        kept = []
+        for plugin in server.plugins:
+            if plugin.slug != slug:
+                kept.append(plugin)
+
+        server.plugins = kept
+
+        if len(server.plugins) < before:
+            lock.get(name, {}).pop(slug, None)
+            removed.append(name)
+        else:
+            skipped.append(name)
+
+        if name in lock and not lock[name]:
+            del lock[name]
+
+    if not removed:
+        raise errors.McnetError(f"'{slug}' not found on any of those servers")
+
+    save_manifest(manifest)
+    save_lock(root, lock)
+
+    return results.RemovePluginResult(removed, skipped)

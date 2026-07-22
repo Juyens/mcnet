@@ -158,3 +158,54 @@ def sync():
 @app.command()
 def update_plugin():
     """Check for newer plugin versions and update the lockfile."""
+
+
+@app.command()
+def remove_server(
+    server_name: str = typer.Argument(..., help="Name of the server to remove"),
+):
+    """Remove a server from the network.
+
+    Deletes it from the manifest and the lockfile. Downloaded files on
+    disk (jars, worlds, configs) are left untouched. Asks for confirmation.
+    """
+    typed = typer.prompt(f"Type '{server_name}' to confirm removal")
+
+    if typed != server_name:
+        log.err("name does not match, aborted")
+        raise typer.Exit(code=1)
+
+    try:
+        commands.mcnet_remove_server(server_name)
+    except errors.McnetError as e:
+        log.err(str(e))
+        raise typer.Exit(code=1)
+
+    log.ok(f"removed server '{server_name}'")
+
+
+@app.command()
+def remove_plugin(
+    slug: str = typer.Argument(..., help="Slug of the plugin to remove"),
+    server_names: str = typer.Option(
+        ..., "--server", "-s", help="Comma-separated servers to remove it from"
+    ),
+):
+    """Remove a plugin from one or more servers.
+
+    Deletes it from the manifest and the lockfile. Downloaded jars on disk
+    are left untouched. Asks for confirmation.
+    """
+    if not typer.confirm(f"Remove '{slug}' from {server_names}?"):
+        raise typer.Exit()
+
+    try:
+        result = commands.mcnet_remove_plugin(slug, server_names)
+    except errors.McnetError as e:
+        log.err(str(e))
+        raise typer.Exit(code=1)
+
+    for name in result.skipped:
+        log.warn(f"'{slug}' was not on '{name}'")
+
+    log.ok(f"removed {slug} from: {', '.join(result.removed)}")

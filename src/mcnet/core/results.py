@@ -18,3 +18,9 @@ class AddPluginResult:
 class SyncResult:
     downloaded: list = field(default_factory=list)
     skipped: dict = field(default_factory=dict)
+
+
+@dataclass
+class RemovePluginResult:
+    removed: list = field(default_factory=list)
+    skipped: list = field(default_factory=list)
