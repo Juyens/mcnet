@@ -14,9 +14,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact: mcnet.exe
+            built: mcnet.exe
+            asset: mcnet-windows.exe
           - os: ubuntu-latest
-            artifact: mcnet
+            built: mcnet
+            asset: mcnet-linux
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -27,7 +29,10 @@ jobs:
         run: uv sync
       - name: Build executable
         run: uv run pyinstaller --onefile --name mcnet src/mcnet/__main__.py
+      - name: Rename for the target system
+        run: mv dist/${{ matrix.built }} dist/${{ matrix.asset }}
+        shell: bash
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/${{ matrix.artifact }}
+          files: dist/${{ matrix.asset }}
