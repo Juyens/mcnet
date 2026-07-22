@@ -15,7 +15,7 @@ from mcnet.services.manifest import find_manifest, load_manifest, save_manifest
 from mcnet.services.resolve import resolve_all
 
 
-def mcnet_init(project_name: str, mc_version: str):
+def init(project_name: str, mc_version: str):
     path = Path("mcnet.yaml")
 
     if path.exists():
@@ -39,7 +39,7 @@ def mcnet_init(project_name: str, mc_version: str):
     ensure_gitignore(Path.cwd())
 
 
-def mcnet_add_server(server_name: str, loader: str, port: int):
+def add_server(server_name: str, loader: str, port: int):
     manifest = load_manifest()
 
     if server_name in manifest.servers:
@@ -67,7 +67,7 @@ def mcnet_add_server(server_name: str, loader: str, port: int):
     return results.AddServerResult(server_name, port)
 
 
-def mcnet_edit_server(server_name: str, new_name: str, loader: str, port: int):
+def edit_server(server_name: str, new_name: str, loader: str, port: int):
     manifest = load_manifest()
 
     if server_name not in manifest.servers:
@@ -102,12 +102,12 @@ def mcnet_edit_server(server_name: str, new_name: str, loader: str, port: int):
     return changes
 
 
-def mcnet_list():
+def list():
     manifest = load_manifest()
     return manifest.servers
 
 
-def mcnet_add_plugin(url: str, server_names: str):
+def add_plugin(url: str, server_names: str):
     manifest = load_manifest()
 
     root = find_manifest().parent
@@ -159,7 +159,7 @@ def mcnet_add_plugin(url: str, server_names: str):
     return results.AddPluginResult(slug, compatible, skipped)
 
 
-def mcnet_sync():
+def sync():
     manifest = load_manifest()
 
     root = find_manifest().parent
@@ -224,7 +224,7 @@ def mcnet_sync():
     return results.SyncResult(downloaded, up_to_date, skipped)
 
 
-def mcnet_remove_server(server_name: str):
+def remove_server(server_name: str):
     root = find_manifest().parent
     manifest = load_manifest()
 
@@ -239,7 +239,7 @@ def mcnet_remove_server(server_name: str):
     save_lock(root, lock)
 
 
-def mcnet_remove_plugin(slug: str, server_names: str):
+def remove_plugin(slug: str, server_names: str):
     root = find_manifest().parent
     manifest = load_manifest()
     lock = load_lock(root)
@@ -288,7 +288,7 @@ def mcnet_remove_plugin(slug: str, server_names: str):
     return results.RemovePluginResult(removed, skipped)
 
 
-def mcnet_update(slug: str | None = None):
+def update(slug: str | None = None):
     path = find_manifest()
     root = path.parent
     manifest = load_manifest(path)

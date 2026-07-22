@@ -25,7 +25,7 @@ def init(
     current folder name.
     """
     try:
-        commands.mcnet_init(project_name=project_name, mc_version=mc_version)
+        commands.init(project_name=project_name, mc_version=mc_version)
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -50,9 +50,7 @@ def add_server(
     otherwise the next free one.
     """
     try:
-        result = commands.mcnet_add_server(
-            server_name=server_name, loader=loader, port=port
-        )
+        result = commands.add_server(server_name=server_name, loader=loader, port=port)
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -73,7 +71,7 @@ def edit_server(
 ):
     """Change the settings of an existing server."""
     try:
-        changes = commands.mcnet_edit_server(
+        changes = commands.edit_server(
             server_name=server_name, new_name=new_name, loader=loader, port=port
         )
     except errors.McnetError as e:
@@ -94,7 +92,7 @@ def edit_server(
 def list():
     """List the servers defined in the network."""
     try:
-        servers = commands.mcnet_list()
+        servers = commands.list()
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -120,7 +118,7 @@ def add_plugin(
     """Add a plugin to a server from its Modrinth or Hangar URL."""
 
     try:
-        result = commands.mcnet_add_plugin(url=url, server_names=server_names)
+        result = commands.add_plugin(url=url, server_names=server_names)
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -139,7 +137,7 @@ def add_plugin(
 def sync():
     """Download every plugin declared in the manifest."""
     try:
-        result = commands.mcnet_sync()
+        result = commands.sync()
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -167,7 +165,7 @@ def update(
     Rewrites the lockfile with the new versions.
     """
     try:
-        result = commands.mcnet_update(slug)
+        result = commands.update(slug)
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -201,7 +199,7 @@ def remove_server(
         raise typer.Exit(code=1)
 
     try:
-        commands.mcnet_remove_server(server_name)
+        commands.remove_server(server_name)
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -225,7 +223,7 @@ def remove_plugin(
         raise typer.Exit()
 
     try:
-        result = commands.mcnet_remove_plugin(slug, server_names)
+        result = commands.remove_plugin(slug, server_names)
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)

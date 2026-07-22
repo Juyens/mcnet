@@ -15,7 +15,11 @@ def download(url: str, hash: str, algorithm: str, filename: str, dest: Path):
     hash_algorithm = hashlib.new(algorithm)
 
     with httpx.stream("GET", url, follow_redirects=True) as response:
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise errors.McnetError(f"{e.response.status_code} for {filename}") from e
+
         with tmp.open("wb") as file:
             for chunk in response.iter_bytes():
                 file.write(chunk)
