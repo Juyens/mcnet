@@ -144,8 +144,8 @@ def sync():
         log.err(str(e))
         raise typer.Exit(code=1)
 
-    for line in result.downloaded:
-        log.ok(f"+ {line}")
+    if result.downloaded:
+        log.ok(f"downloaded {len(result.downloaded)} plugin(s)")
 
     for key, reason in result.skipped.items():
         log.warn(f"skipped {key}: {reason}")

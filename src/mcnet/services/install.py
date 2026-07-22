@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from mcnet.core.download import download, file_matches
+from mcnet.core.download import download
+from mcnet.core.file import file_matches
 from mcnet.core.models import LockEntry, Plugin, Server
 from mcnet.services import registry
 
@@ -41,14 +42,3 @@ def install_fresh(
     )
 
     return resolved.filename, did_download
-
-
-def install_from_lock(root, server_name, entry: LockEntry) -> tuple[str | None, bool]:
-    dest = root / server_name / "plugins" / entry.filename
-
-    if file_matches(dest, entry.hash, entry.algorithm):
-        return entry.filename, False
-
-    download(entry.url, entry.hash, entry.algorithm, entry.filename, dest)
-
-    return entry.filename, True

@@ -1,21 +1,12 @@
 import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import httpx
+from rich.progress import Progress
 
 from mcnet.core import errors
-
-
-def file_matches(path: Path, expected_hash: str, algorithm: str) -> bool:
-    if not path.exists():
-        return False
-
-    digest = hashlib.new(algorithm)
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            digest.update(chunk)
-
-    return digest.hexdigest() == expected_hash
+from mcnet.core.models import DownloadTask
 
 
 def download(url: str, hash: str, algorithm: str, filename: str, dest: Path):
@@ -35,3 +26,35 @@ def download(url: str, hash: str, algorithm: str, filename: str, dest: Path):
         raise errors.McnetError(f"hash mismatch for {filename}")
 
     tmp.replace(dest)
+
+
+def download_all(tasks: list[DownloadTask]) -> tuple[list, dict]:
+    downloaded = []
+    failed = {}
+
+    with Progress() as progress:
+        bar = progress.add_task("Downloading", total=len(tasks))
+
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futures = {}
+            for task in tasks:
+                future = pool.submit(
+                    download,
+                    task.url,
+                    task.hash,
+                    task.algorithm,
+                    task.filename,
+                    task.dest,
+                )
+                futures[future] = task
+
+            for future in as_completed(futures):
+                task = futures[future]
+                try:
+                    future.result()
+                    downloaded.append(task.key)
+                except (errors.McnetError, httpx.HTTPError) as e:
+                    failed[task.key] = f"download failed: {e}"
+                progress.update(bar, advance=1)
+
+    return downloaded, failed

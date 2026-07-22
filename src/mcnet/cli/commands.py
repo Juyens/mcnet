@@ -4,11 +4,14 @@ import httpx
 import yaml
 
 from mcnet.core import errors, results
-from mcnet.core.models import Plugin, Server
+from mcnet.core.download import download_all
+from mcnet.core.file import file_matches
+from mcnet.core.models import DownloadTask, LockEntry, Plugin, Server
 from mcnet.services import parser
-from mcnet.services.install import install_fresh, install_from_lock
+from mcnet.services.install import install_fresh
 from mcnet.services.lock import load_lock, save_lock
 from mcnet.services.manifest import find_manifest, load_manifest, save_manifest
+from mcnet.services.resolve import resolve_all
 
 
 def mcnet_init(project_name: str, mc_version: str):
@@ -159,32 +162,61 @@ def mcnet_sync():
     root = find_manifest().parent
     lock = load_lock(root)
 
-    downloaded = []
+    tasks = []
     up_to_date = []
     skipped = {}
 
+    to_resolve = []
+
     for name, server in manifest.servers.items():
         for plugin in server.plugins:
-            try:
-                locked = lock.get(name, {}).get(plugin.slug)
-                if locked is not None:
-                    filename, did_download = install_from_lock(root, name, locked)
-                else:
-                    filename, did_download = install_fresh(
-                        root, name, server, plugin, manifest.mc_version, lock
-                    )
+            locked = lock.get(name, {}).get(plugin.slug)
 
-                if filename is None:
-                    skipped[f"{name}/{plugin.slug}"] = f"no {server.loader} version"
-                elif did_download:
-                    downloaded.append(f"{name}/{filename}")
-                else:
-                    up_to_date.append(f"{name}/{filename}")
+            if locked is None:
+                key = f"{name}/{plugin.slug}"
+                to_resolve.append((key, name, server, plugin))
 
-            except (errors.McnetError, httpx.HTTPError) as e:
-                skipped[f"{name}/{plugin.slug}"] = f"download failed: {e}"
+    resolved = resolve_all(to_resolve, manifest.mc_version)
+
+    for key, name, server, plugin in to_resolve:
+        r = resolved[key]
+        if r is None:
+            skipped[key] = f"no {server.loader} version"
+            continue
+        lock.setdefault(name, {})[plugin.slug] = LockEntry(
+            source=plugin.source,
+            version=r.version,
+            filename=r.filename,
+            hash=r.hash,
+            algorithm=r.algorithm,
+            url=r.url,
+        )
 
     save_lock(root, lock)
+
+    for name, server in manifest.servers.items():
+        for plugin in server.plugins:
+            key = f"{name}/{plugin.slug}"
+            entry = lock.get(name, {}).get(plugin.slug)
+            if entry is None:
+                continue
+            dest = root / name / "plugins" / entry.filename
+            if file_matches(dest, entry.hash, entry.algorithm):
+                up_to_date.append(key)
+            else:
+                tasks.append(
+                    DownloadTask(
+                        key,
+                        entry.url,
+                        entry.hash,
+                        entry.algorithm,
+                        entry.filename,
+                        dest,
+                    )
+                )
+
+    downloaded, failed = download_all(tasks)
+    skipped.update(failed)
 
     return results.SyncResult(downloaded, up_to_date, skipped)
 
