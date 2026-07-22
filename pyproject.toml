@@ -1,5 +1,6 @@
 [project]
 name = "mcnet"
+license = "MIT"
 version = "0.1.0"
 description = "Declarative manager for Minecraft server networks: one manifest, a lockfile, reproducible plugin installs from Modrinth and Hangar."
 readme = "README.md"
