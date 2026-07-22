@@ -10,5 +10,11 @@ class AddServerResult:
 @dataclass
 class AddPluginResult:
     slug: str
-    resolved_map: dict = field(default_factory=dict)
+    compatible: list = field(default_factory=list)
+    skipped: dict = field(default_factory=dict)
+
+
+@dataclass
+class SyncResult:
+    downloaded: list = field(default_factory=list)
     skipped: dict = field(default_factory=dict)

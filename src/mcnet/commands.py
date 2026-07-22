@@ -1,13 +1,14 @@
-import yaml
-
 from pathlib import Path
+
+import httpx
+import yaml
 
 from mcnet import errors, results
 from mcnet.core import parser
-from mcnet.core.manifest import load_manifest, save_manifest
-from mcnet.core.models import Server
-from mcnet.sources import registry
-from mcnet.sources.download import download
+from mcnet.core.lock import load_lock, save_lock
+from mcnet.core.manifest import find_manifest, load_manifest, save_manifest
+from mcnet.core.models import Plugin, Server
+from mcnet.core.plugin import install_fresh, install_from_lock
 
 
 def mcnet_init(project_name: str, mc_version: str):
@@ -33,7 +34,6 @@ def mcnet_init(project_name: str, mc_version: str):
 
 
 def mcnet_add_server(server_name: str, loader: str, port: int):
-
     manifest = load_manifest()
 
     if server_name in manifest.servers:
@@ -101,8 +101,11 @@ def mcnet_list():
     return manifest.servers
 
 
-def add_plugin(url: str, server_names: str):
+def mcnet_add_plugin(url: str, server_names: str):
     manifest = load_manifest()
+
+    root = find_manifest().parent
+    lock = load_lock(root)
 
     unknown = []
     names = parser.parse_list(server_names)
@@ -117,18 +120,16 @@ def add_plugin(url: str, server_names: str):
     source, slug = parser.parse_plugin_url(url)
 
     skipped = {}
-    resolved_map = {}
-
-    mc_version = manifest.mc_version
+    compatible = []
 
     for name in names:
         server = manifest.servers[name]
 
         already = False
         for plugin in server.plugins:
-            if plugin["slug"] == slug:
+            if plugin.slug == slug:
                 already = True
-                skipped[name] = f"already added from {plugin['source']}"
+                skipped[name] = f"already added from {plugin.source}"
                 break
 
         if already:
@@ -136,18 +137,50 @@ def add_plugin(url: str, server_names: str):
 
         loader = manifest.servers[name].loader
 
-        api = registry.get_client(source)
-        resolved = api.resolve(slug, loader, mc_version)
+        resolved = install_fresh(
+            root, name, server, Plugin(source, slug), manifest.mc_version, lock
+        )
 
         if resolved is None:
-            skipped[name] = f"no {loader} version for MC {mc_version}"
+            skipped[name] = f"no {loader} version for MC {manifest.mc_version}"
         else:
-            resolved_map[name] = resolved
-
-    for name, resolved in resolved_map.items():
-        download(resolved, Path(name) / "plugins" / resolved.filename)
-        manifest.servers[name].plugins.append({"source": source, "slug": slug})
+            manifest.servers[name].plugins.append(Plugin(source, slug))
+            compatible.append(name)
 
     save_manifest(manifest)
+    save_lock(root, lock)
 
-    return results.AddPluginResult(slug, resolved_map, skipped)
+    return results.AddPluginResult(slug, compatible, skipped)
+
+
+def mcnet_sync():
+    manifest = load_manifest()
+
+    root = find_manifest().parent
+    lock = load_lock(root)
+
+    downloaded = []
+    skipped = {}
+
+    for name, server in manifest.servers.items():
+        for plugin in server.plugins:
+            try:
+                locked = lock.get(name, {}).get(plugin.slug)
+                if locked is not None:
+                    filename = install_from_lock(root, name, locked)
+                else:
+                    filename = install_fresh(
+                        root, name, server, plugin, manifest.mc_version, lock
+                    )
+
+                if filename is None:
+                    skipped[f"{name}/{plugin.slug}"] = f"no {server.loader} version"
+                else:
+                    downloaded.append(f"{name}/{filename}")
+
+            except (errors.McnetError, httpx.HTTPError) as e:
+                skipped[f"{name}/{plugin.slug}"] = f"download failed: {e}"
+
+    save_lock(root, lock)
+
+    return results.SyncResult(downloaded, skipped)

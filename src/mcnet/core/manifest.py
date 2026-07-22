@@ -1,22 +1,33 @@
+from pathlib import Path
+
 import yaml
 
-from pathlib import Path
 from mcnet import errors
-from mcnet.core.models import Server, Manifest
+from mcnet.core.models import Manifest, Plugin, Server
 
 
-def load_manifest(path: Path = Path("mcnet.yaml")) -> Manifest:
-    if not path.exists():
-        raise errors.McnetError("mcnet.yaml not found (did you run 'mcnet init'?)")
+def load_manifest(path: Path | None = None) -> Manifest:
+    if path is None:
+        path = find_manifest()
 
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     servers = {}
 
     for name, cfg in (raw.get("servers") or {}).items():
+        plugins = []
+
+        for plugin in cfg.get("plugins", []):
+            plugins.append(
+                Plugin(
+                    source=plugin["source"],
+                    slug=plugin["slug"],
+                )
+            )
+
         servers[name] = Server(
             loader=cfg["loader"],
             port=cfg["port"],
-            plugins=cfg.get("plugins", []),
+            plugins=plugins,
         )
 
     if "mc_version" not in raw:
@@ -33,10 +44,20 @@ def save_manifest(manifest: Manifest, path=Path("mcnet.yaml")):
     servers = {}
 
     for name, server in manifest.servers.items():
+        plugins = []
+
+        for plugin in server.plugins:
+            plugins.append(
+                {
+                    "source": plugin.source,
+                    "slug": plugin.slug,
+                }
+            )
+
         servers[name] = {
             "loader": server.loader,
             "port": server.port,
-            "plugins": server.plugins,
+            "plugins": plugins,
         }
 
     raw = {
@@ -49,3 +70,14 @@ def save_manifest(manifest: Manifest, path=Path("mcnet.yaml")):
         yaml.safe_dump(raw, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
     )
+
+
+def find_manifest(start: Path | None = None) -> Path:
+    current = (start or Path.cwd()).resolve()
+
+    for folder in [current, *current.parents]:
+        candidate = folder / "mcnet.yaml"
+        if candidate.exists():
+            return candidate
+
+    raise errors.McnetError("mcnet.yaml not found (run 'mcnet init')")

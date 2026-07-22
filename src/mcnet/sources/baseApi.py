@@ -1,14 +1,6 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
-
-@dataclass
-class Resolved:
-    filename: str
-    url: str
-    hash: str
-    algorithm: str
-    version: str
+from mcnet.core.models import Resolved
 
 
 class BaseApi(ABC):

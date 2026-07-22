@@ -119,7 +119,7 @@ def add_plugin(
     """Add a plugin to a server from its Modrinth or Hangar URL."""
 
     try:
-        result = commands.add_plugin(url=url, server_names=server_names)
+        result = commands.mcnet_add_plugin(url=url, server_names=server_names)
     except errors.McnetError as e:
         log.err(str(e))
         raise typer.Exit(code=1)
@@ -127,16 +127,31 @@ def add_plugin(
     for name, reason in result.skipped.items():
         log.warn(f"skipped '{name}': {reason}")
 
-    if not result.resolved_map:
+    if not result.compatible:
         log.warn(f"{result.slug}: not added to any server")
         return
 
-    log.ok(f"added {result.slug} to: {', '.join(result.resolved_map)}")
+    log.ok(f"added {result.slug} to: {', '.join(result.compatible)}")
 
 
 @app.command()
 def sync():
     """Download every plugin declared in the manifest."""
+    try:
+        result = commands.mcnet_sync()
+    except errors.McnetError as e:
+        log.err(str(e))
+        raise typer.Exit(code=1)
+
+    for key, reason in result.skipped.items():
+        log.warn(f"skipped {key}: {reason}")
+
+    if not result.downloaded and not result.skipped:
+        log.info("nothing to sync (no plugins in manifest)")
+    elif not result.downloaded:
+        log.warn("no plugins downloaded — check the skipped list above")
+    else:
+        log.ok(f"downloaded {len(result.downloaded)} plugin(s)")
 
 
 @app.command()
