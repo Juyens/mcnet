@@ -1,0 +1,23 @@
+import typer
+
+app = typer.Typer()
+
+
+@app.command()
+def create():
+    pass
+
+
+@app.command()
+def delete():
+    pass
+
+
+@app.command()
+def edit():
+    pass
+
+
+@app.command()
+def show():
+    pass
