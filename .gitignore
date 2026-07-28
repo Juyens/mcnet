@@ -21,3 +21,7 @@ mcnet.lock.json
 /build/
 /dist/
 *.spec
+
+# ia
+.claude
+.agents
