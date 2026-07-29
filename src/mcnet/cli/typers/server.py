@@ -19,7 +19,7 @@ def create(
         ServerLoader, typer.Argument(help="Server software to run")
     ] = ServerLoader.PAPER,
 ):
-    """Create a server in the current folder."""
+    """Create a server in the current folder"""
 
 
 @app.command()
