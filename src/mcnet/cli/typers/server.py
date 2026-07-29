@@ -10,14 +10,17 @@ app = typer.Typer(no_args_is_help=True)
 
 @app.command()
 def create(
-    name: Annotated[str, typer.Argument(help="Name of the server")],
+    name: Annotated[
+        str, typer.Argument(help="Name of the server", callback=callbacks.validate_name)
+    ],
     version: Annotated[
         str,
         typer.Argument(help="Minecraft version", callback=callbacks.validate_version),
     ],
     loader: Annotated[
-        ServerLoader, typer.Argument(help="Server software to run")
-    ] = ServerLoader.PAPER,
+        ServerLoader,
+        typer.Argument(help="Server software to run"),
+    ],
 ):
     """Create a server in the current folder"""
 

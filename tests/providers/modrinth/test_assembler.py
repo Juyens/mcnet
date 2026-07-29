@@ -1,10 +1,16 @@
 from mcnet.providers.modrinth.assembler import ModrinthAssembler
+from mcnet.providers.modrinth.resources import GameVersionResource, VersionResource
 
 
 def test_keeps_only_releases_in_order() -> None:
-    resources = [
+    resources: list[GameVersionResource] = [
         {"version": "26.2", "version_type": "release", "date": "", "major": True},
-        {"version": "26.3-snapshot-1", "version_type": "snapshot", "date": "", "major": False},
+        {
+            "version": "26.3-snapshot-1",
+            "version_type": "snapshot",
+            "date": "",
+            "major": False,
+        },
         {"version": "26.1.2", "version_type": "release", "date": "", "major": False},
     ]
 
@@ -12,15 +18,20 @@ def test_keeps_only_releases_in_order() -> None:
 
 
 def test_no_releases_gives_an_empty_list() -> None:
-    resources = [
-        {"version": "26.3-snapshot-1", "version_type": "snapshot", "date": "", "major": False},
+    resources: list[GameVersionResource] = [
+        {
+            "version": "26.3-snapshot-1",
+            "version_type": "snapshot",
+            "date": "",
+            "major": False,
+        },
     ]
 
     assert ModrinthAssembler.to_release_versions(resources) == []
 
 
 def test_to_resolved_picks_the_primary_file() -> None:
-    resource = {
+    resource: VersionResource = {
         "version_number": "1.4.36",
         "files": [
             {
@@ -49,7 +60,7 @@ def test_to_resolved_picks_the_primary_file() -> None:
 
 
 def test_to_resolved_returns_none_without_a_primary_file() -> None:
-    resource = {
+    resource: VersionResource = {
         "version_number": "1.0.0",
         "files": [
             {

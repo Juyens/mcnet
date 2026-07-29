@@ -31,3 +31,14 @@ def validate_version(ctx: typer.Context, value: str) -> str:
         message = f"{message}. Did you mean {close[0]}?"
 
     raise typer.BadParameter(message)
+
+
+def validate_name(ctx: typer.Context, value: str) -> str:
+    if ctx.resilient_parsing:
+        return value
+
+    problem = validation.name_problem(value)
+    if problem is not None:
+        raise typer.BadParameter(problem)
+
+    return value

@@ -1,6 +1,6 @@
 import pytest
 
-from mcnet.core.validation import is_version_shape
+from mcnet.core.validation import is_version_shape, name_problem
 
 
 @pytest.mark.parametrize(
@@ -26,3 +26,16 @@ def test_accepts_release_shapes(value: str) -> None:
 )
 def test_rejects_anything_else(value: str) -> None:
     assert not is_version_shape(value)
+
+
+@pytest.mark.parametrize("value", ["survival", "lobby-2", "mi_red", "s"])
+def test_accepts_simple_names(value: str) -> None:
+    assert name_problem(value) is None
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["", "Survival", "mi server", "-lobby", "surv/ival", "nul", "com1", "a" * 33],
+)
+def test_rejects_problematic_names(value: str) -> None:
+    assert name_problem(value) is not None

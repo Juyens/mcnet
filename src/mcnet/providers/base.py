@@ -1,6 +1,18 @@
-from typing import Protocol
+from typing import Any, Protocol
 
 from mcnet.core.models import Resolved
+from mcnet.core.types import QueryParams
+
+
+class JsonClient(Protocol):
+    """Anything able to fetch and decode JSON. Http is the real one."""
+
+    def get_json(
+        self,
+        url: str,
+        params: QueryParams | None = None,
+        ttl: int = 0,
+    ) -> Any: ...
 
 
 class PluginProvider(Protocol):

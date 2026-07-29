@@ -1,6 +1,5 @@
 from mcnet.core.models import Resolved
-from mcnet.providers.base import PluginProvider
-from mcnet.providers.http import Http
+from mcnet.providers.base import JsonClient, PluginProvider
 from mcnet.providers.modrinth.assembler import ModrinthAssembler
 from mcnet.providers.modrinth.resources import GameVersionResource
 
@@ -11,7 +10,7 @@ GAME_VERSION_ENDPOINT = "/tag/game_version"
 
 
 class ModrinthAPI(PluginProvider):
-    def __init__(self, http: Http) -> None:
+    def __init__(self, http: JsonClient) -> None:
         self._http = http
         self._assembler = ModrinthAssembler()
 

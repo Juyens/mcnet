@@ -25,17 +25,22 @@ def test_game_version_returns_release_names() -> None:
     http = FakeHttp(
         [
             {"version": "26.2", "version_type": "release", "date": "", "major": True},
-            {"version": "26.3-snapshot-1", "version_type": "snapshot", "date": "", "major": False},
+            {
+                "version": "26.3-snapshot-1",
+                "version_type": "snapshot",
+                "date": "",
+                "major": False,
+            },
         ]
     )
 
-    assert ModrinthAPI(http).game_version() == ["26.2"]
+    assert ModrinthAPI(http).game_versions() == ["26.2"]
 
 
 def test_game_version_calls_the_tag_endpoint_with_a_day_of_cache() -> None:
     http = FakeHttp([])
 
-    ModrinthAPI(http).game_version()
+    ModrinthAPI(http).game_versions()
 
     url, ttl = http.calls[0]
     assert url == "https://api.modrinth.com/v2/tag/game_version"
