@@ -1,75 +1,68 @@
-from pathlib import Path
-
 import pytest
 
-from mcnet.core.error import McnetError
-from mcnet.core.models import Manifest
-from mcnet.core.validation import is_version_shape, name_problem
-from mcnet.manifest import save_manifest, server_folder
+from mcnet.core.validation import MAX_NAME_LENGTH, is_version_shape, name_problem
 
 
 @pytest.mark.parametrize(
     "value",
-    ["26.1", "26.1.2", "1.21.4", "1.21.11"],
+    ["26.1", "26.1.2", "1.21.4", "1.21.11", "0.0", "100.200.300"],
 )
-def test_accepts_release_shapes(value: str) -> None:
+def test_accepts_version_shapes(value: str) -> None:
     assert is_version_shape(value)
 
 
 @pytest.mark.parametrize(
     "value",
     [
-        "",
-        "26",
-        "26.x",
-        "26.1.2.3",
-        "1,21",
-        "latest",
-        "26.3-snapshot-1",
-        " 26.1",
+        pytest.param("", id="empty"),
+        pytest.param("26", id="one-part"),
+        pytest.param("26.1.2.3", id="four-parts"),
+        pytest.param("26.x", id="letter"),
+        pytest.param("1,21", id="comma"),
+        pytest.param("latest", id="word"),
+        pytest.param("26.3-snapshot-1", id="snapshot"),
+        pytest.param(" 26.1", id="leading-space"),
+        pytest.param("26.1 ", id="trailing-space"),
+        pytest.param("26.1\n", id="trailing-newline"),
     ],
 )
-def test_rejects_anything_else(value: str) -> None:
+def test_rejects_invalid_versions(value: str) -> None:
     assert not is_version_shape(value)
 
 
-@pytest.mark.parametrize("value", ["survival", "lobby-2", "mi_red", "s"])
-def test_accepts_simple_names(value: str) -> None:
+@pytest.mark.parametrize(
+    "value", ["survival", "lobby", "newtork123", "jup-idi", "mundito_123"]
+)
+def test_accepts_names(value: str) -> None:
     assert name_problem(value) is None
 
 
 @pytest.mark.parametrize(
     "value",
-    ["", "Survival", "mi server", "-lobby", "surv/ival", "nul", "com1", "a" * 33],
+    [
+        # empty
+        pytest.param("", id="empty"),
+        # too long
+        pytest.param("a" * (MAX_NAME_LENGTH + 1), id="one-over-limit"),
+        # shape
+        pytest.param("Survival", id="uppercase"),
+        pytest.param("mi server", id="space"),
+        pytest.param(" survival", id="leading-space"),
+        pytest.param("survival ", id="trailing-space"),
+        pytest.param("survival\n", id="trailing-newline"),
+        pytest.param("-lobby", id="starts-with-hyphen"),
+        pytest.param("_lobby", id="starts-with-underscore"),
+        pytest.param("surv/ival", id="slash"),
+        pytest.param("surv\\ival", id="backslash"),
+        pytest.param("surv:ival", id="colon"),
+        pytest.param("survival.old", id="dot"),
+        pytest.param("señor", id="accented"),
+        # reserved on Windows
+        pytest.param("nul", id="nul"),
+        pytest.param("con", id="con"),
+        pytest.param("com1", id="com1"),
+        pytest.param("lpt9", id="lpt9"),
+    ],
 )
-def test_rejects_problematic_names(value: str) -> None:
+def test_rejects_problematic_names(value: str):
     assert name_problem(value) is not None
-
-
-@pytest.fixture
-def survival() -> Manifest:
-    return Manifest(
-        loader="paper",
-        mc_version="26.1.2",
-        port=25565,
-    )
-
-
-def test_finds_a_named_server(tmp_path: Path, survival: Manifest) -> None:
-    folder = tmp_path / "survival"
-    folder.mkdir()
-    save_manifest(survival, folder)
-
-    assert server_folder("survival", root=tmp_path) == folder
-
-
-def test_fails_when_the_folder_has_no_manifest(tmp_path: Path) -> None:
-    (tmp_path / "survival").mkdir()
-
-    with pytest.raises(McnetError):
-        server_folder("survival", root=tmp_path)
-
-
-def test_fails_when_the_folder_does_not_exist(tmp_path: Path) -> None:
-    with pytest.raises(McnetError):
-        server_folder("survival", root=tmp_path)

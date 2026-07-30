@@ -1,7 +1,8 @@
 import re
 
-_VERSION = re.compile(r"^\d+\.\d+(\.\d+)?$")
-_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+_VERSION = re.compile(r"^\d+\.\d+(\.\d+)?\Z")
+
+_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*\Z")
 
 MAX_NAME_LENGTH = 32
 

@@ -32,7 +32,7 @@ mcnet = "mcnet.cli.app:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--import-mode=importlib"
+addopts = "--import-mode=importlib --tb=short"
 
 [tool.pyright]
 venvPath = "."
