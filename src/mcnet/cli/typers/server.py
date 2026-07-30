@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from typing import Annotated
 
@@ -10,7 +11,7 @@ from mcnet.core import log, paths
 from mcnet.core.error import McnetError
 from mcnet.core.loaders import ServerLoader
 from mcnet.core.models import Manifest
-from mcnet.manifest import load_manifest, save_manifest, server_folder
+from mcnet.manifest import load_manifest, remove_manifest, save_manifest, server_folder
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -58,11 +59,6 @@ def create(
     log.ok(f"created '{name}' ({loader.value} {mc_version}) on port {port}")
     log.hint(f"manifest written to {paths.display(manifest_path)}")
     log.hint("run 'mcnet sync' to download the server jar")
-
-
-@app.command()
-def delete():
-    pass
 
 
 @app.command()
@@ -132,7 +128,58 @@ def edit(
             log.detail(line)
 
     if needs_sync:
-        log.hint("run 'mcnet sync' to apply the changes")
+        log.hint(f"run 'mcnet sync {name}' to apply the changes")
+
+
+@app.command()
+@handle
+def forget(
+    name: Annotated[str, typer.Argument(help="Name of the server to delete")],
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Skip the confirmation")
+    ] = False,
+):
+    folder = server_folder(name)
+
+    if not yes:
+        manifest = load_manifest(folder)
+
+        log.warn(f"this will remove the mcnet.yaml of '{name}'")
+        log.detail(
+            f"loader, version, port and {len(manifest.plugins)} declared plugins"
+        )
+
+        if typer.prompt(f"Type '{name}' to confirm") != name:
+            raise McnetError("name does not match, nothing was removed")
+
+    remove_manifest(folder)
+
+    log.ok(f"mcnet no longer manages '{name}'")
+    log.hint(f"the files in {paths.display(folder)} are untouched")
+
+
+@app.command()
+@handle
+def delete(
+    name: Annotated[str, typer.Argument(help="Name of the server to delete")],
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Skip the confirmation")
+    ] = False,
+):
+    folder = server_folder(name)
+
+    if not yes:
+        log.warn(f"this will delete {paths.display(folder)} and everything in it")
+
+        if (folder / "world").exists():
+            log.detail("including the world, which cannot be recovered")
+
+        if typer.prompt(f"Type '{name}' to confirm") != name:
+            raise McnetError("name does not match, nothing was deleted")
+
+    shutil.rmtree(folder)
+
+    log.ok(f"deleted {paths.display(folder)}")
 
 
 @app.command()

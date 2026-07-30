@@ -7,7 +7,7 @@ _out = Console(highlighter=McnetHighlighter(), theme=THEME, markup=False)
 _err = Console(stderr=True, highlighter=McnetHighlighter(), theme=THEME, markup=False)
 
 
-_INDENT = "  . "
+_INDENT = "  "
 
 
 def _write(console: Console, symbol: str, color: str, message: str) -> None:
@@ -23,7 +23,7 @@ def detail(message: str) -> None:
 
 
 def hint(message: str) -> None:
-    _err.print(Text(">", style="dim"), message, style="dim")
+    _write(_err, ">", "bright_black", message)
 
 
 def ok(message: str) -> None:

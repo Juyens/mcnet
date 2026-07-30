@@ -13,6 +13,13 @@ SCHEMA = 1
 _IGNORED = frozenset({".git", ".venv", "node_modules", "__pycache__"})
 
 
+def _require(raw: dict[str, Any], key: str, path: Path) -> Any:
+    if key not in raw:
+        raise McnetError(f"{paths.display(path)} is missing '{key}'")
+
+    return raw[key]
+
+
 def server_folder(name: str, root: Path | None = None) -> Path:
     """Folder of a named server under root (default: cwd)."""
     folder = (root or Path.cwd()) / name
@@ -77,8 +84,8 @@ def load_manifest(folder: Path) -> Manifest:
     )
 
 
-def _require(raw: dict[str, Any], key: str, path: Path) -> Any:
-    if key not in raw:
-        raise McnetError(f"{paths.display(path)} is missing '{key}'")
+def remove_manifest(folder: Path) -> Path:
+    path = folder / MANIFEST_NAME
+    path.unlink()
 
-    return raw[key]
+    return path
