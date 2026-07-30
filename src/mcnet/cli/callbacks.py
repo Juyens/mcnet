@@ -6,8 +6,8 @@ from mcnet.core import error, log, validation
 from mcnet.providers import registry
 
 
-def validate_version(ctx: typer.Context, value: str) -> str:
-    if ctx.resilient_parsing:
+def validate_version(ctx: typer.Context, value: str | None) -> str | None:
+    if ctx.resilient_parsing or value is None:
         return value
 
     if not validation.is_version_shape(value):

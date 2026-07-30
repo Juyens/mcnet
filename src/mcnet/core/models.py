@@ -18,7 +18,8 @@ class Plugin:
 
 @dataclass
 class Manifest:
-    name: str
+    """A server or proxy. Its name is the folder it lives in."""
+
     loader: str
     mc_version: str
     port: int

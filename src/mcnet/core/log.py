@@ -1,35 +1,38 @@
 from rich.console import Console
 from rich.text import Text
 
-_out = Console()
-_err = Console(stderr=True)
+from mcnet.core.theme import THEME, McnetHighlighter
 
-# Lines up with the text after a one-character symbol plus its space.
-_INDENT = "  "
+_out = Console(highlighter=McnetHighlighter(), theme=THEME, markup=False)
+_err = Console(stderr=True, highlighter=McnetHighlighter(), theme=THEME, markup=False)
 
 
-def _write(console: Console, symbol: str, style: str, message: str) -> None:
-    line = Text(symbol, style=style)
-    line.append(" ")
-    line.append(message)
-    console.print(line)
+_INDENT = "  . "
+
+
+def _write(console: Console, symbol: str, color: str, message: str) -> None:
+    console.print(Text(symbol, style=f"bold {color}"), message, style=color)
 
 
 def info(message: str) -> None:
-    _out.print(Text(message))
+    _out.print(message)
+
+
+def detail(message: str) -> None:
+    _out.print(_INDENT + message)
 
 
 def hint(message: str) -> None:
-    _err.print(Text(_INDENT + message, style="dim"))
+    _err.print(Text(">", style="dim"), message, style="dim")
 
 
 def ok(message: str) -> None:
-    _write(_out, "+", "bold green", message)
+    _write(_out, "+", "green", message)
 
 
 def warn(message: str) -> None:
-    _write(_err, "!", "bold yellow", message)
+    _write(_err, "!", "yellow", message)
 
 
 def err(message: str) -> None:
-    _write(_err, "x", "bold red", message)
+    _write(_err, "x", "red", message)
