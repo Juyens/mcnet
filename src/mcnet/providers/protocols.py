@@ -1,7 +1,9 @@
+from collections.abc import Mapping
 from typing import Any, Protocol
 
-from mcnet.core.models import Resolved
-from mcnet.core.types import QueryParams
+from mcnet.domain.models import Resolved
+
+type QueryParams = Mapping[str, str | int | float | bool | None]
 
 
 class JsonClient(Protocol):

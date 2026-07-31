@@ -1,6 +1,6 @@
 import pytest
 
-from mcnet.core.validation import MAX_NAME_LENGTH, is_version_shape, name_problem
+from mcnet.domain.validation import MAX_NAME_LENGTH, is_version_shape, name_problem
 
 
 @pytest.mark.parametrize(

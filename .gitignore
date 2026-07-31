@@ -12,9 +12,6 @@ __pycache__/
 .venv/
 
 # test artifacts
-plugins/
-mcnet.yaml
-mcnet.lock.json
 /sandbox/
 
 # build

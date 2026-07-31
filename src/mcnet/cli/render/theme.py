@@ -1,7 +1,10 @@
+from collections.abc import Sequence
+from typing import ClassVar
+
 from rich.highlighter import RegexHighlighter
 from rich.theme import Theme
 
-from mcnet.core.loaders import ProxyLoader, ServerLoader
+from mcnet.domain.loaders import ProxyLoader, ServerLoader
 
 _LOADER_COLORS = {
     "bukkit": "dark_blue",
@@ -24,7 +27,7 @@ for loader in [*ServerLoader, *ProxyLoader]:
 
 class McnetHighlighter(RegexHighlighter):
     base_style = "mcnet."
-    highlights = [
+    highlights: ClassVar[Sequence[str]] = [
         r"(?P<quoted>'[^']*')",
         r"(?P<number>\b\d+(\.\d+)+\b|\b\d{4,5}\b)",
         r"(?P<path>\b[\w-]+[\\/][\w./\\-]+)",

@@ -4,8 +4,8 @@ from typing import Any
 
 import typer
 
-from mcnet.core import log
-from mcnet.core.error import McnetError
+from mcnet.cli.render import log
+from mcnet.errors import McnetError
 
 
 def handle(fn: Callable[..., Any]) -> Callable[..., Any]:

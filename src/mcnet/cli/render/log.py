@@ -1,7 +1,7 @@
 from rich.console import Console
 from rich.text import Text
 
-from mcnet.core.theme import THEME, McnetHighlighter
+from mcnet.cli.render.theme import THEME, McnetHighlighter
 
 _out = Console(highlighter=McnetHighlighter(), theme=THEME, markup=False)
 _err = Console(stderr=True, highlighter=McnetHighlighter(), theme=THEME, markup=False)

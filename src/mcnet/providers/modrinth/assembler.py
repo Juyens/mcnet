@@ -1,4 +1,4 @@
-from mcnet.core.models import Resolved
+from mcnet.domain.models import Resolved
 from mcnet.providers.modrinth.resources import GameVersionResource, VersionResource
 
 

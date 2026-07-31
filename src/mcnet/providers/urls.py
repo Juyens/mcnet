@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from mcnet.core.error import McnetError
+from mcnet.errors import McnetError
 
 _HOSTS = {
     "modrinth.com": "modrinth",

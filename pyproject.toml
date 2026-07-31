@@ -30,6 +30,19 @@ dev = [
 [project.scripts]
 mcnet = "mcnet.cli.app:app"
 
+[tool.ruff]
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "N", "B", "C4", "SIM", "RET", "PTH", "TID", "RUF", "ARG"]
+ignore = [
+    # Protocol implementations must keep the full signature, used or not.
+    "ARG002",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mcnet"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib --tb=short"

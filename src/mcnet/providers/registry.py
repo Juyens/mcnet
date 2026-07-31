@@ -1,32 +1,25 @@
-from mcnet.core.error import McnetError
-from mcnet.core.paths import cache_dir
-from mcnet.providers.base import PluginProvider
-from mcnet.providers.http import Http
+from mcnet.errors import McnetError
 from mcnet.providers.modrinth import ModrinthAPI
-
-USER_AGENT = "juyens/mcnet (joseph.juliuscb@gmail.com)"
+from mcnet.providers.protocols import JsonClient, PluginProvider
 
 
 class Providers:
-    def __init__(self, http: Http) -> None:
+    """Every provider mcnet can talk to, sharing one client."""
+
+    def __init__(self, http: JsonClient) -> None:
         self.modrinth = ModrinthAPI(http)
 
-    def for_source(self, source: str) -> PluginProvider:
-        available: dict[str, PluginProvider] = {
+        self._by_source: dict[str, PluginProvider] = {
             "modrinth": self.modrinth,
         }
 
-        if source not in available:
-            raise McnetError(f"unknown source: {source}")
+    def for_source(self, source: str) -> PluginProvider:
+        provider = self._by_source.get(source)
 
-        return available[source]
+        if provider is None:
+            raise McnetError(
+                f"unknown source: {source}",
+                hint=f"mcnet reads plugins from {', '.join(self._by_source)}",
+            )
 
-
-_providers: Providers | None = None
-
-
-def get_providers() -> Providers:
-    global _providers
-    if _providers is None:
-        _providers = Providers(Http(USER_AGENT, cache_dir()))
-    return _providers
+        return provider

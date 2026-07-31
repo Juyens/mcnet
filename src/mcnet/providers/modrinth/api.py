@@ -1,7 +1,7 @@
-from mcnet.core.models import Resolved
-from mcnet.providers.base import JsonClient, PluginProvider
+from mcnet.domain.models import Resolved
 from mcnet.providers.modrinth.assembler import ModrinthAssembler
 from mcnet.providers.modrinth.resources import GameVersionResource
+from mcnet.providers.protocols import JsonClient, PluginProvider
 
 BASE_URL = "https://api.modrinth.com/v2"
 ONE_DAY = 86400

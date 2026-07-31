@@ -1,19 +1,21 @@
-import shutil
-from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from mcnet.cli import callbacks
-from mcnet.cli.changes import Changes
 from mcnet.cli.handler import handle
-from mcnet.core import log, paths
-from mcnet.core.error import McnetError
-from mcnet.core.loaders import ServerLoader
-from mcnet.core.models import Manifest
-from mcnet.manifest import load_manifest, remove_manifest, save_manifest, server_folder
+from mcnet.cli.render import changes, log
+from mcnet.domain.loaders import ServerLoader
+from mcnet.errors import McnetError
+from mcnet.services import servers
+from mcnet.storage import paths
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _confirm(name: str, refusal: str) -> None:
+    if typer.prompt(f"Type '{name}' to confirm") != name:
+        raise McnetError(f"name does not match, {refusal}")
 
 
 @app.command()
@@ -38,23 +40,9 @@ def create(
     ] = 25565,
 ):
     """Create a server in the current folder"""
-    target = Path.cwd() / name
-
-    if target.exists():
-        raise McnetError(
-            f"{paths.display(target)} already exists",
-            hint="pick another name, or remove the folder first",
-        )
-
-    target.mkdir(parents=True)
-
-    server = Manifest(
-        loader=loader.value,
-        mc_version=mc_version,
-        port=port,
-        plugins=[],
+    manifest_path = servers.create(
+        name, loader=loader.value, mc_version=mc_version, port=port
     )
-    manifest_path = save_manifest(server, target)
 
     log.ok(f"created '{name}' ({loader.value} {mc_version}) on port {port}")
     log.hint(f"manifest written to {paths.display(manifest_path)}")
@@ -91,43 +79,29 @@ def edit(
     ] = None,
 ):
     """Change the settings of a server"""
-    folder = server_folder(name)
-    manifest = load_manifest(folder)
+    folder = servers.locate(name)
+    result = servers.edit(
+        folder,
+        loader=None if loader is None else loader.value,
+        mc_version=mc_version,
+        port=port,
+    )
 
-    changes = Changes()
-    needs_sync = False
-
-    if loader is not None:
-        if changes.record("loader", manifest.loader, loader.value):
-            manifest.loader = loader.value
-            needs_sync = True
-
-    if mc_version is not None:
-        if changes.record("version", manifest.mc_version, mc_version):
-            manifest.mc_version = mc_version
-            needs_sync = True
-
-    if port is not None:
-        if changes.record("port", manifest.port, port):
-            manifest.port = port
-
-    if not changes.applied and not changes.already:
+    if not result.applied and not result.unchanged:
         log.warn("nothing to change")
         raise typer.Exit()
 
-    if changes.already:
+    if result.unchanged:
         log.warn(f"{name} already has that configuration")
-        for line in changes.already:
-            log.detail(line)
+        for change in result.unchanged:
+            log.detail(changes.unchanged(change))
 
-    if changes.applied:
-        save_manifest(manifest, folder)
-
+    if result.applied:
         log.ok(f"updated {name}")
-        for line in changes.applied:
-            log.detail(line)
+        for change in result.applied:
+            log.detail(changes.applied(change))
 
-    if needs_sync:
+    if result.needs_sync:
         log.hint(f"run 'mcnet sync {name}' to apply the changes")
 
 
@@ -139,20 +113,18 @@ def forget(
         bool, typer.Option("--yes", "-y", help="Skip the confirmation")
     ] = False,
 ):
-    folder = server_folder(name)
+    folder = servers.locate(name)
 
     if not yes:
-        manifest = load_manifest(folder)
-
         log.warn(f"this will remove the mcnet.yaml of '{name}'")
         log.detail(
-            f"loader, version, port and {len(manifest.plugins)} declared plugins"
+            f"loader, version, port and "
+            f"{servers.declared_plugins(folder)} declared plugins"
         )
 
-        if typer.prompt(f"Type '{name}' to confirm") != name:
-            raise McnetError("name does not match, nothing was removed")
+        _confirm(name, "nothing was removed")
 
-    remove_manifest(folder)
+    servers.forget(folder)
 
     log.ok(f"mcnet no longer manages '{name}'")
     log.hint(f"the files in {paths.display(folder)} are untouched")
@@ -166,18 +138,17 @@ def delete(
         bool, typer.Option("--yes", "-y", help="Skip the confirmation")
     ] = False,
 ):
-    folder = server_folder(name)
+    folder = servers.locate(name)
 
     if not yes:
         log.warn(f"this will delete {paths.display(folder)} and everything in it")
 
-        if (folder / "world").exists():
+        if servers.has_world(folder):
             log.detail("including the world, which cannot be recovered")
 
-        if typer.prompt(f"Type '{name}' to confirm") != name:
-            raise McnetError("name does not match, nothing was deleted")
+        _confirm(name, "nothing was deleted")
 
-    shutil.rmtree(folder)
+    servers.delete(folder)
 
     log.ok(f"deleted {paths.display(folder)}")
 

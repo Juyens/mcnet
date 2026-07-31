@@ -6,8 +6,8 @@ from typing import Any
 
 import httpx
 
-from mcnet.core.error import McnetError
-from mcnet.core.types import QueryParams
+from mcnet.errors import McnetError
+from mcnet.providers.protocols import QueryParams
 
 RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 

@@ -2,8 +2,10 @@ import difflib
 
 import typer
 
-from mcnet.core import error, log, validation
-from mcnet.providers import registry
+from mcnet.cli import context
+from mcnet.cli.render import log
+from mcnet.domain import validation
+from mcnet.errors import McnetError
 
 
 def validate_version(ctx: typer.Context, value: str | None) -> str | None:
@@ -13,11 +15,11 @@ def validate_version(ctx: typer.Context, value: str | None) -> str | None:
     if not validation.is_version_shape(value):
         raise typer.BadParameter(f"'{value}' is not a Minecraft version")
 
-    modrinth_api = registry.get_providers().modrinth
+    modrinth_api = context.providers(ctx).modrinth
 
     try:
         known_versions = modrinth_api.game_versions()
-    except error.McnetError:
+    except McnetError:
         log.warn(f"could not verify {value} with Modrinth, continuing anyway")
         return value
 
