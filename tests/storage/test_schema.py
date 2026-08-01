@@ -2,14 +2,14 @@ from pathlib import Path
 
 import pytest
 
-from mcnet.domain.models import Manifest, Plugin
+from mcnet.domain.models import Plugin, ServerManifest
 from mcnet.errors import McnetError
 from mcnet.storage import manifest
 from mcnet.storage.manifest import MANIFEST_NAME
 
 GOLDEN = Path(__file__).parent / "fixtures" / "schema_v1.yaml"
 
-EXPECTED = Manifest(
+EXPECTED = ServerManifest(
     loader="paper",
     mc_version="1.21.4",
     port=25565,

@@ -1,23 +1,15 @@
 import typer
 
-from mcnet.providers.http import Http
-from mcnet.providers.registry import Providers
-from mcnet.storage.paths import cache_dir
-
-USER_AGENT = "juyens/mcnet (joseph.juliuscb@gmail.com)"
+from mcnet.services.session import Session
 
 
 def attach(ctx: typer.Context) -> None:
-    """Wire the providers into ctx, closing the client when the command ends."""
-    http = Http(USER_AGENT, cache_dir())
-    ctx.call_on_close(http.close)
-
-    ctx.obj = Providers(http)
+    ctx.obj = ctx.with_resource(Session())
 
 
-def providers(ctx: typer.Context) -> Providers:
+def session(ctx: typer.Context) -> Session:
     """Typed access to what attach() wired up."""
-    if not isinstance(ctx.obj, Providers):
+    if not isinstance(ctx.obj, Session):
         raise RuntimeError("providers are missing, attach() never ran")
 
     return ctx.obj

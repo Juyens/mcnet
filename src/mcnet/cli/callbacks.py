@@ -2,7 +2,7 @@ import difflib
 
 import typer
 
-from mcnet.cli import context
+from mcnet.cli.context import session
 from mcnet.cli.render import log
 from mcnet.domain import validation
 from mcnet.errors import McnetError
@@ -15,7 +15,7 @@ def validate_version(ctx: typer.Context, value: str | None) -> str | None:
     if not validation.is_version_shape(value):
         raise typer.BadParameter(f"'{value}' is not a Minecraft version")
 
-    modrinth_api = context.providers(ctx).modrinth
+    modrinth_api = session(ctx).providers.modrinth
 
     try:
         known_versions = modrinth_api.game_versions()

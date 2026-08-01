@@ -4,18 +4,13 @@ import typer
 
 from mcnet.cli import callbacks
 from mcnet.cli.handler import handle
-from mcnet.cli.render import changes, log
+from mcnet.cli.prompts import confirm_name
+from mcnet.cli.render import log, paths
+from mcnet.cli.render.changes import applied_line, unchanged_line
 from mcnet.domain.loaders import ServerLoader
-from mcnet.errors import McnetError
 from mcnet.services import servers
-from mcnet.storage import paths
 
 app = typer.Typer(no_args_is_help=True)
-
-
-def _confirm(name: str, refusal: str) -> None:
-    if typer.prompt(f"Type '{name}' to confirm") != name:
-        raise McnetError(f"name does not match, {refusal}")
 
 
 @app.command()
@@ -35,7 +30,7 @@ def create(
     port: Annotated[
         int,
         typer.Option(
-            "--port", "-p", help="Port the server listens on", min=1024, max=65535
+            "--port", "-p", help="P ort the server listens on", min=1024, max=65535
         ),
     ] = 25565,
 ):
@@ -80,28 +75,28 @@ def edit(
 ):
     """Change the settings of a server"""
     folder = servers.locate(name)
-    result = servers.edit(
+    changes = servers.edit(
         folder,
         loader=None if loader is None else loader.value,
         mc_version=mc_version,
         port=port,
     )
 
-    if not result.applied and not result.unchanged:
+    if not changes.applied and not changes.unchanged:
         log.warn("nothing to change")
         raise typer.Exit()
 
-    if result.unchanged:
+    if changes.unchanged:
         log.warn(f"{name} already has that configuration")
-        for change in result.unchanged:
-            log.detail(changes.unchanged(change))
+        for change in changes.unchanged:
+            log.detail(unchanged_line(change))
 
-    if result.applied:
+    if changes.applied:
         log.ok(f"updated {name}")
-        for change in result.applied:
-            log.detail(changes.applied(change))
+        for change in changes.applied:
+            log.detail(applied_line(change))
 
-    if result.needs_sync:
+    if changes.needs_sync:
         log.hint(f"run 'mcnet sync {name}' to apply the changes")
 
 
@@ -122,7 +117,7 @@ def forget(
             f"{servers.declared_plugins(folder)} declared plugins"
         )
 
-        _confirm(name, "nothing was removed")
+        confirm_name(name, refusal="nothing was removed")
 
     servers.forget(folder)
 
@@ -146,7 +141,7 @@ def delete(
         if servers.has_world(folder):
             log.detail("including the world, which cannot be recovered")
 
-        _confirm(name, "nothing was deleted")
+        confirm_name(name, refusal="nothing was deleted")
 
     servers.delete(folder)
 

@@ -3,17 +3,19 @@ import sys
 from pathlib import Path
 
 
+def available(name: str, root: Path | None = None) -> Path | None:
+    """Path for a new folder under root. Fails if something is already there."""
+    target = (root or Path.cwd()) / name
+
+    if target.exists():
+        return None
+
+    return target
+
+
 def cache_dir() -> Path:
     if sys.platform == "win32":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
     else:
         base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
     return base / "mcnet"
-
-
-def display(path: Path) -> str:
-    """Path relative to the current folder when possible, absolute otherwise."""
-    try:
-        return str(path.relative_to(Path.cwd()))
-    except ValueError:
-        return str(path)

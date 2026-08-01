@@ -20,7 +20,7 @@ def test_create_writes_a_manifest(tmp_path: Path) -> None:
 
     assert path == tmp_path / "lobby" / "mcnet.yaml"
 
-    saved = manifest.load_manifest(tmp_path / "lobby")
+    saved = manifest.load_server(tmp_path / "lobby")
     assert saved.loader == "paper"
     assert saved.mc_version == "1.21.4"
     assert saved.port == 25565
@@ -51,7 +51,7 @@ def test_edit_applies_and_persists(tmp_path: Path) -> None:
     assert [change.label for change in result.applied] == ["loader", "port"]
     assert result.unchanged == []
 
-    saved = manifest.load_manifest(folder)
+    saved = manifest.load_server(folder)
     assert saved.loader == "purpur"
     assert saved.port == 25570
 

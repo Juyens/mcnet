@@ -8,11 +8,11 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 
+# test
+/sandbox/
+
 # environment
 .venv/
-
-# test artifacts
-/sandbox/
 
 # build
 /build/
