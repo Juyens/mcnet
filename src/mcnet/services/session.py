@@ -2,7 +2,6 @@ from typing import Self
 
 from mcnet.providers.http import Http
 from mcnet.providers.registry import Providers
-from mcnet.storage.paths import cache_dir
 
 _USER_AGENT = "juyens/mcnet (joseph.juliuscb@gmail.com)"
 
@@ -11,7 +10,7 @@ class Session:
     """A session is a context manager that provides access to the providers."""
 
     def __init__(self) -> None:
-        self._http = Http(_USER_AGENT, cache_dir())
+        self._http = Http(_USER_AGENT)
         self._providers = Providers(self._http)
 
     @property

@@ -2,7 +2,11 @@ from typing import Annotated
 
 import typer
 
+from mcnet.cli import context
 from mcnet.cli.handler import handle
+from mcnet.cli.render import log
+from mcnet.cli.render.plugins import incompatible_line
+from mcnet.services import plugin
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -10,13 +14,36 @@ app = typer.Typer(no_args_is_help=True)
 @app.command()
 @handle
 def add(
+    ctx: typer.Context,
     url: Annotated[str, typer.Argument(help="Modrinth or Hangar URL of the plugin")],
     names: Annotated[
         list[str],
         typer.Argument(help="Servers to add it to"),
     ],
 ):
-    pass
+    """Declare a plugin on one or more servers."""
+    result = plugin.add(url, names, context.session(ctx).providers)
+
+    if result.added:
+        log.ok(f"added '{result.slug}' to {', '.join(result.added)}")
+
+    if result.already:
+        log.warn(f"'{result.slug}' was already in {', '.join(result.already)}")
+
+    for target in result.incompatible:
+        log.warn(f"skipped {target.name}: {incompatible_line(target)}")
+
+    for name in result.unknown:
+        log.warn(f"no server named '{name}'")
+
+    if not result.verified:
+        log.warn("could not check compatibility with Modrinth")
+
+    if result.added:
+        log.hint("run 'mcnet sync' to download it")
+
+    if result.unknown:
+        raise typer.Exit(code=1)
 
 
 @app.command()

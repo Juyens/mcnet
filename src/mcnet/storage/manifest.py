@@ -9,28 +9,6 @@ from mcnet.storage import schema
 MANIFEST_NAME = "mcnet.yaml"
 
 
-def find_server(name: str, root: Path | None = None) -> Path | None:
-    """Folder of a named server under root, or None if there is none."""
-    folder = (root or Path.cwd()) / name
-
-    if not (folder / MANIFEST_NAME).exists():
-        return None
-
-    return folder
-
-
-def server_folder(name: str, root: Path | None = None) -> Path:
-    folder = find_server(name, root)
-
-    if folder is None:
-        raise McnetError(
-            f"no server named '{name}' here",
-            hint="check the name, or cd into the folder that contains it",
-        )
-
-    return folder
-
-
 def save_manifest(manifest: AnyManifest, folder: Path) -> Path:
     path = folder / MANIFEST_NAME
     path.write_text(

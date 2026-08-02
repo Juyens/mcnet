@@ -1,6 +1,6 @@
 from mcnet.errors import McnetError
 from mcnet.providers.modrinth import ModrinthAPI
-from mcnet.providers.protocols import JsonClient, PluginProvider
+from mcnet.providers.protocols import JsonClient, Provider
 
 
 class Providers:
@@ -9,11 +9,11 @@ class Providers:
     def __init__(self, http: JsonClient) -> None:
         self.modrinth = ModrinthAPI(http)
 
-        self._by_source: dict[str, PluginProvider] = {
+        self._by_source: dict[str, Provider] = {
             "modrinth": self.modrinth,
         }
 
-    def for_source(self, source: str) -> PluginProvider:
+    def for_source(self, source: str) -> Provider:
         provider = self._by_source.get(source)
 
         if provider is None:

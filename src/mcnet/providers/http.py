@@ -1,5 +1,7 @@
 import hashlib
 import json
+import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -12,12 +14,22 @@ from mcnet.providers.protocols import QueryParams
 RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
+def default_cache_dir() -> Path:
+    """Where mcnet keeps cached API responses on this machine."""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
+    else:
+        base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+
+    return base / "mcnet"
+
+
 class Http:
-    def __init__(self, user_agent: str, cache_dir: Path) -> None:
+    def __init__(self, user_agent: str, cache_dir: Path | None = None) -> None:
         self._client = httpx.Client(
             headers={"User-Agent": user_agent}, timeout=20, follow_redirects=True
         )
-        self._cache_dir = cache_dir
+        self._cache_dir = cache_dir or default_cache_dir()
 
     def get_json(
         self, url: str, params: QueryParams | None = None, ttl: int = 0

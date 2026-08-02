@@ -1,0 +1,37 @@
+from pathlib import Path
+
+from mcnet.errors import McnetError
+from mcnet.storage.manifest import MANIFEST_NAME
+
+
+def available(name: str, root: Path | None = None) -> Path | None:
+    """Path for a new folder under root, or None if something is already there."""
+    target = (root or Path.cwd()) / name
+
+    if target.exists():
+        return None
+
+    return target
+
+
+def find(name: str, root: Path | None = None) -> Path | None:
+    """Folder of a managed server or proxy under root, or None."""
+    folder = (root or Path.cwd()) / name
+
+    if not (folder / MANIFEST_NAME).exists():
+        return None
+
+    return folder
+
+
+def locate(name: str, root: Path | None = None) -> Path:
+    """Same as find, but fails when there is nothing there."""
+    folder = find(name, root)
+
+    if folder is None:
+        raise McnetError(
+            f"nothing named '{name}' is managed here",
+            hint="check the name, or cd into the folder that contains it",
+        )
+
+    return folder

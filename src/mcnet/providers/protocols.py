@@ -17,7 +17,7 @@ class JsonClient(Protocol):
     ) -> Any: ...
 
 
-class PluginProvider(Protocol):
-    def resolve(self, slug: str, loader: str, mc_version: str) -> Resolved | None:
+class Provider(Protocol):
+    def resolve(self, slug: str, *, loader: str, mc_version: str) -> Resolved | None:
         """Return the matching jar, or None if no compatible version exists."""
         ...

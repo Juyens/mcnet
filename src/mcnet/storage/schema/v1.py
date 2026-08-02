@@ -32,6 +32,7 @@ def _proxy_to_dict(manifest: ProxyManifest) -> dict[str, Any]:
     return {
         "schema": VERSION,
         "loader": manifest.loader,
+        "mc_version": manifest.mc_version,
         "port": manifest.port,
         "servers": manifest.servers,
         "plugins": plugins,
@@ -93,8 +94,9 @@ def _proxy_from_dict(raw: dict[str, Any], path: Path) -> ProxyManifest:
     return ProxyManifest(
         loader=_require_str(raw, "loader", path),
         port=_require_int(raw, "port", path),
-        plugins=_plugins(raw, path),
+        mc_version=_require_str(raw, "mc_version", path),
         servers=_servers(raw, path),
+        plugins=_plugins(raw, path),
     )
 
 
