@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -35,20 +36,26 @@ class ProxyManifest(ServerManifest):
 
 
 @dataclass(frozen=True)
-class Incompatible:
+class Target:
     name: str
-    loader: str
-    mc_version: str
+    folder: Path
+
+
+@dataclass(frozen=True)
+class LockedPlugin:
+    source: str
+    version: str
+    filename: str
+    hash: str
+    algorithm: str
+    url: str
 
 
 @dataclass
-class AddResult:
-    slug: str
-    added: list[str] = field(default_factory=list)
-    already: list[str] = field(default_factory=list)
-    incompatible: list[Incompatible] = field(default_factory=list)
-    unknown: list[str] = field(default_factory=list)
-    verified: bool = True
+class LockFile:
+    loader: str
+    mc_version: str
+    plugins: dict[str, LockedPlugin] = field(default_factory=dict)
 
 
 type AnyManifest = ServerManifest | ProxyManifest

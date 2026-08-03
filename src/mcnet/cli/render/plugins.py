@@ -1,4 +1,4 @@
-from mcnet.domain.models import Incompatible
+from mcnet.domain.results import Incompatible
 
 
 def incompatible_line(target: Incompatible) -> str:

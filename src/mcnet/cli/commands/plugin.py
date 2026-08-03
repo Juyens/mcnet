@@ -34,7 +34,7 @@ def add(
         log.warn(f"skipped {target.name}: {incompatible_line(target)}")
 
     for name in result.unknown:
-        log.warn(f"no server named '{name}'")
+        log.err(f"no server named '{name}'")
 
     if not result.verified:
         log.warn("could not check compatibility with Modrinth")
@@ -47,8 +47,27 @@ def add(
 
 
 @app.command()
-def remove():
-    pass
+@handle
+def remove(
+    slug: Annotated[str, typer.Argument(help="Slug of the plugin")],
+    names: Annotated[
+        list[str],
+        typer.Argument(help="Servers to remove it from"),
+    ],
+):
+    result = plugin.remove(slug, names)
+
+    if result.removed:
+        log.ok(f"removed '{result.slug}' from {', '.join(result.removed)}")
+
+    if result.missing:
+        log.warn(f"'{result.slug}' was not in {', '.join(result.missing)}")
+
+    for name in result.unknown:
+        log.err(f"no server named '{name}'")
+
+    if result.unknown:
+        raise typer.Exit(code=1)
 
 
 @app.command()

@@ -12,7 +12,9 @@ MANIFEST_NAME = "mcnet.yaml"
 def save_manifest(manifest: AnyManifest, folder: Path) -> Path:
     path = folder / MANIFEST_NAME
     path.write_text(
-        yaml.safe_dump(schema.to_dict(manifest), sort_keys=False, allow_unicode=True),
+        yaml.safe_dump(
+            schema.manifest_to_dict(manifest), sort_keys=False, allow_unicode=True
+        ),
         encoding="utf-8",
     )
 
@@ -30,7 +32,7 @@ def load_manifest(folder: Path) -> AnyManifest:
     if not isinstance(raw, dict):
         raise McnetError(f"{path} is not a mcnet manifest")
 
-    return schema.from_dict(raw, path)
+    return schema.manifest_from_dict(raw, path)
 
 
 def load_server(folder: Path) -> ServerManifest:

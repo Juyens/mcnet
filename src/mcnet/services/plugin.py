@@ -1,4 +1,5 @@
-from mcnet.domain.models import AddResult, Incompatible, Plugin
+from mcnet.domain.models import Plugin, Target
+from mcnet.domain.results import AddResult, Incompatible, RemoveResult
 from mcnet.errors import McnetError
 from mcnet.providers.registry import Providers
 from mcnet.providers.urls import parse_plugin_url
@@ -11,27 +12,19 @@ def add(url: str, names: list[str], providers: Providers) -> AddResult:
     provider = providers.for_source(source)
 
     result = AddResult(slug=slug)
-    targets = []
-
-    for name in names:
-        folder = discovery.find(name)
-
-        if folder is None:
-            result.unknown.append(name)
-        else:
-            targets.append((name, folder))
+    targets, result.unknown = _split_targets(names)
 
     if not targets:
         raise McnetError(
             f"none of those servers exist: {', '.join(result.unknown)}",
-            hint="check the spelling, or create them with 'mcnet server create'",
+            hint="check the spelling with 'mcnet server show'",
         )
 
-    for name, folder in targets:
-        target = manifest.load_manifest(folder)
+    for target in targets:
+        declared = manifest.load_manifest(target.folder)
 
-        if _has_plugin(target, slug):
-            result.already.append(name)
+        if _has_plugin(declared, slug):
+            result.already.append(target.name)
             continue
 
         compatible = True
@@ -39,7 +32,7 @@ def add(url: str, names: list[str], providers: Providers) -> AddResult:
         try:
             compatible = (
                 provider.resolve(
-                    slug, loader=target.loader, mc_version=target.mc_version
+                    slug, loader=declared.loader, mc_version=declared.mc_version
                 )
                 is not None
             )
@@ -49,16 +42,59 @@ def add(url: str, names: list[str], providers: Providers) -> AddResult:
         if not compatible:
             result.incompatible.append(
                 Incompatible(
-                    name=name, loader=target.loader, mc_version=target.mc_version
+                    name=target.name,
+                    loader=declared.loader,
+                    mc_version=declared.mc_version,
                 )
             )
             continue
 
-        target.plugins.append(Plugin(source=source, slug=slug))
-        manifest.save_manifest(target, folder)
-        result.added.append(name)
+        declared.plugins.append(Plugin(source=source, slug=slug))
+        manifest.save_manifest(declared, target.folder)
+        result.added.append(target.name)
 
     return result
+
+
+def remove(slug: str, names: list[str]) -> RemoveResult:
+    targets, unknown = _split_targets(names)
+
+    if not targets:
+        raise McnetError(
+            f"none of those servers exist: {', '.join(unknown)}",
+            hint="check the spelling with 'mcnet server show'",
+        )
+
+    result = RemoveResult(slug=slug, unknown=unknown)
+
+    for target in targets:
+        declared = manifest.load_manifest(target.folder)
+
+        if not _has_plugin(declared, slug):
+            result.missing.append(target.name)
+            continue
+
+        declared.plugins = [
+            plugin for plugin in declared.plugins if plugin.slug != slug
+        ]
+        manifest.save_manifest(declared, target.folder)
+        result.removed.append(target.name)
+
+    return result
+
+
+def _split_targets(names: list[str]) -> tuple[list[Target], list[str]]:
+    targets, unknown = [], []
+
+    for name in names:
+        folder = discovery.find(name)
+
+        if folder is None:
+            unknown.append(name)
+        else:
+            targets.append(Target(name, folder))
+
+    return targets, unknown
 
 
 def _has_plugin(target: AnyManifest, slug: str) -> bool:

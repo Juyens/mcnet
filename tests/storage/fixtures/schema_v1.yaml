@@ -3,7 +3,7 @@ loader: paper
 mc_version: 1.21.4
 port: 25565
 plugins:
-- source: modrinth
-  slug: luckperms
-- source: hangar
-  slug: viaversion
+- slug: luckperms
+  source: modrinth
+- slug: viaversion
+  source: hangar

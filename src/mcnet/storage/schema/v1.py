@@ -2,20 +2,27 @@ from pathlib import Path
 from typing import Any
 
 from mcnet.domain.loaders import ProxyLoader
-from mcnet.domain.models import AnyManifest, Plugin, ProxyManifest, ServerManifest
+from mcnet.domain.models import (
+    AnyManifest,
+    LockedPlugin,
+    LockFile,
+    Plugin,
+    ProxyManifest,
+    ServerManifest,
+)
 from mcnet.errors import McnetError
 
 VERSION = 1
 
 
-def to_dict(manifest: AnyManifest) -> dict[str, Any]:
+def manifest_to_dict(manifest: AnyManifest) -> dict[str, Any]:
     if isinstance(manifest, ProxyManifest):
         return _proxy_to_dict(manifest)
 
     return _server_to_dict(manifest)
 
 
-def from_dict(raw: dict[str, Any], path: Path) -> AnyManifest:
+def manifest_from_dict(raw: dict[str, Any], path: Path) -> AnyManifest:
     loader = _require(raw, "loader", path)
 
     if loader in ProxyLoader:
@@ -24,10 +31,62 @@ def from_dict(raw: dict[str, Any], path: Path) -> AnyManifest:
     return _server_from_dict(raw, path)
 
 
+def lock_to_dict(lock: LockFile) -> dict[str, Any]:
+    plugins = {}
+    for slug, entry in lock.plugins.items():
+        plugins[slug] = {
+            "source": entry.source,
+            "version": entry.version,
+            "filename": entry.filename,
+            "hash": entry.hash,
+            "algorithm": entry.algorithm,
+            "url": entry.url,
+        }
+
+    return {
+        "schema": VERSION,
+        "loader": lock.loader,
+        "mc_version": lock.mc_version,
+        "plugins": plugins,
+    }
+
+
+def lock_from_dict(raw: dict[str, Any], path: Path) -> LockFile:
+    return LockFile(
+        loader=_require_str(raw, "loader", path),
+        mc_version=_require_str(raw, "mc_version", path),
+        plugins=_locked_plugins(raw, path),
+    )
+
+
+def _locked_plugins(raw: dict[str, Any], path: Path) -> dict[str, Any]:
+    entries = raw.get("plugins") or {}
+
+    if not isinstance(entries, dict):
+        raise McnetError(f"{path} has a malformed plugins section")
+
+    plugins = {}
+
+    for slug, entry in entries.items():
+        if not isinstance(entry, dict):
+            raise McnetError(f"{path} has a malformed entry for '{slug}'")
+
+        plugins[slug] = LockedPlugin(
+            source=_require_str(entry, "source", path),
+            version=_require_str(entry, "version", path),
+            filename=_require_str(entry, "filename", path),
+            hash=_require_str(entry, "hash", path),
+            algorithm=_require_str(entry, "algorithm", path),
+            url=_require_str(entry, "url", path),
+        )
+
+    return plugins
+
+
 def _proxy_to_dict(manifest: ProxyManifest) -> dict[str, Any]:
     plugins = []
     for plugin in manifest.plugins:
-        plugins.append({"source": plugin.source, "slug": plugin.slug})
+        plugins.append({"slug": plugin.slug, "source": plugin.source})
 
     return {
         "schema": VERSION,
@@ -42,7 +101,7 @@ def _proxy_to_dict(manifest: ProxyManifest) -> dict[str, Any]:
 def _server_to_dict(manifest: ServerManifest) -> dict[str, Any]:
     plugins = []
     for plugin in manifest.plugins:
-        plugins.append({"source": plugin.source, "slug": plugin.slug})
+        plugins.append({"slug": plugin.slug, "source": plugin.source})
 
     return {
         "schema": VERSION,
