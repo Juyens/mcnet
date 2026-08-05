@@ -18,7 +18,7 @@ app = typer.Typer(no_args_is_help=True)
 @handle
 def create(
     name: Annotated[
-        str, typer.Argument(help="Name of the server", callback=callbacks.validate_name)
+        str, typer.Argument(help="Name of the proxy", callback=callbacks.validate_name)
     ],
     mc_version: Annotated[
         str,
@@ -26,7 +26,7 @@ def create(
     ],
     loader: Annotated[
         ProxyLoader,
-        typer.Argument(help="Server software to run"),
+        typer.Argument(help="Proxy software to run"),
     ] = ProxyLoader.VELOCITY,
     port: Annotated[
         int,
@@ -35,7 +35,7 @@ def create(
         ),
     ] = 25565,
 ):
-    """Create a server in the current folder"""
+    """Create a proxy in the current folder"""
     manifest_path = workspace.create(
         name, loader=loader.value, mc_version=mc_version, port=port
     )
@@ -51,12 +51,12 @@ def edit(
     name: Annotated[
         str,
         typer.Argument(
-            help="Name of the server to edit", callback=callbacks.validate_name
+            help="Name of the proxy to edit", callback=callbacks.validate_name
         ),
     ],
     loader: Annotated[
         ProxyLoader | None,
-        typer.Option("--loader", "-l", help="Server software to run"),
+        typer.Option("--loader", "-l", help="Proxy software to run"),
     ] = None,
     mc_version: Annotated[
         str | None,
@@ -74,7 +74,7 @@ def edit(
         ),
     ] = None,
 ):
-    """Change the settings of a server"""
+    """Change the settings of a proxy"""
     folder = workspace.locate(name)
     changes = workspace.edit(
         folder,
@@ -104,11 +104,12 @@ def edit(
 @app.command()
 @handle
 def forget(
-    name: Annotated[str, typer.Argument(help="Name of the server to delete")],
+    name: Annotated[str, typer.Argument(help="Name of the proxy to delete")],
     yes: Annotated[
         bool, typer.Option("--yes", "-y", help="Skip the confirmation")
     ] = False,
 ):
+    """Stop managing a proxy, leaving its files alone."""
     folder = workspace.locate(name)
 
     if not yes:
@@ -129,11 +130,12 @@ def forget(
 @app.command()
 @handle
 def delete(
-    name: Annotated[str, typer.Argument(help="Name of the server to delete")],
+    name: Annotated[str, typer.Argument(help="Name of the proxy to delete")],
     yes: Annotated[
         bool, typer.Option("--yes", "-y", help="Skip the confirmation")
     ] = False,
 ):
+    """Delete a proxy and everything in its folder."""
     folder = workspace.locate(name)
 
     if not yes:

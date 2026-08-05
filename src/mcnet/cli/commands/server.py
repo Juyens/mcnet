@@ -109,6 +109,7 @@ def forget(
         bool, typer.Option("--yes", "-y", help="Skip the confirmation")
     ] = False,
 ):
+    """Stop managing a server, leaving its files alone."""
     folder = workspace.locate(name)
 
     if not yes:
@@ -134,6 +135,7 @@ def delete(
         bool, typer.Option("--yes", "-y", help="Skip the confirmation")
     ] = False,
 ):
+    """Delete a server and everything in its folder."""
     folder = workspace.locate(name)
 
     if not yes:
