@@ -11,6 +11,8 @@ mcnet only supports Modrinth and Hangar as sources, since those are the platform
 [![Modrinth](https://img.shields.io/badge/Modrinth-00AF5C?style=flat)](https://modrinth.com)
 [![Hangar](https://img.shields.io/badge/Hangar-0068D6?style=flat)](https://hangar.papermc.io)
 
+Server and proxy jars come from the projects that publish them: Paper, Purpur, Folia and Velocity.
+
 ## Installation
 
 Download the binary for your system from the [releases](https://github.com/Juyens/mcnet/releases) page, or install from source:
@@ -21,34 +23,43 @@ cd mcnet
 uv tool install .
 ```
 
+Building a server also needs a Java runtime, since mcnet starts it once to generate its files. Minecraft 1.20.5 and newer want Java 21.
+
 ## Usage
 
-Create a manifest and add servers and plugins to your network. `add-plugin` writes the plugin to
-the manifest and downloads it right away:
+Each server is a folder with its own manifest. Create them wherever the network should live:
 
 ```bash
-mcnet init --version 26.1.2
-mcnet add-server survival --loader paper
-mcnet add-plugin https://modrinth.com/plugin/Chunky --server survival
-mcnet add-plugin https://hangar.papermc.io/Gecolay/GSit --server survival
+mcnet server create lobby 1.21.4 paper
+mcnet server create survival 1.21.4 paper --port 25566
+mcnet proxy create hub 1.21.4 velocity --port 25577
 ```
 
-When someone clones your repository, the manifest is there but the jars are not. A single command downloads everything the manifest declares:
+Add plugins by their URL, to as many servers as you like at once. The right build is picked for each one, so the same plugin lands as its Paper jar on a server and its Velocity jar on a proxy:
 
 ```bash
-mcnet sync
+mcnet plugin add https://modrinth.com/plugin/luckperms lobby survival hub
+mcnet plugin add https://hangar.papermc.io/kennytv/Maintenance lobby hub
 ```
 
-## Commands
+Then build. It downloads the server jars and the plugins, writes the settings the manifests declare, starts each server once so it generates the rest, and leaves a launcher behind:
 
-| Command                               | Description                                 |
-| ------------------------------------- | ------------------------------------------- |
-| `init`                                | Create a new manifest in the current folder |
-| `add-server <name>`                   | Add a server                                |
-| `edit-server <name>`                  | Change a server's settings                  |
-| `remove-server <name>`                | Remove a server                             |
-| `list`                                | List all servers                            |
-| `add-plugin <url> --server <a,b>`     | Add a plugin from its Modrinth/Hangar URL   |
-| `remove-plugin <slug> --server <a,b>` | Remove a plugin                             |
-| `sync`                                | Download all plugins from the manifest      |
-| `update [slug]`                       | Update plugins to their latest version      |
+```bash
+mcnet build
+```
+
+That leaves a network you can start, and a folder worth committing:
+
+```bash
+git add . && git commit -m "my network"
+```
+
+The jars stay out of git. What goes in is the manifests, the lockfile pinning exactly which version of everything was resolved, the configs, and the launchers. When someone clones the repository, one command puts it back exactly as it was:
+
+```bash
+git clone https://github.com/you/your-network.git
+cd your-network
+mcnet build
+```
+
+If you only want the jars and not a first start, `mcnet sync` does that half on its own. Both take server names, or work on everything in the folder, or on whichever server you happen to be standing in.

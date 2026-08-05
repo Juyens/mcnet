@@ -2,12 +2,13 @@
 name = "mcnet"
 license = "MIT"
 version = "0.1.0"
-description = "Declarative manager for Minecraft server networks: one manifest, a lockfile, reproducible plugin installs from Modrinth and Hangar."
+description = "Declarative manager for Minecraft server networks: a manifest per server, a lockfile, and reproducible installs of server jars and plugins."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
     "pyyaml>=6.0.3",
+    "rich>=15.0.0",
     "typer>=0.27.0",
 ]
 
@@ -21,8 +22,33 @@ packages = ["src/mcnet"]
 [dependency-groups]
 dev = [
     "pyinstaller>=6.21.0",
+    "pyright>=1.1.411",
+    "pytest>=9.1.1",
     "ruff>=0.15.22",
 ]
 
 [project.scripts]
 mcnet = "mcnet.cli.app:app"
+
+[tool.ruff]
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "N", "B", "C4", "SIM", "RET", "PTH", "TID", "RUF", "ARG"]
+ignore = [
+    # Protocol implementations must keep the full signature, used or not.
+    "ARG002",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mcnet"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib --tb=short"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src", "tests"]
+typeCheckingMode = "standard"

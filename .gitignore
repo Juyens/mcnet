@@ -8,16 +8,17 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 
+# test
+/sandbox/
+
 # environment
 .venv/
-
-# test artifacts
-plugins/
-mcnet.yaml
-mcnet.lock.json
-/sandbox/
 
 # build
 /build/
 /dist/
 *.spec
+
+# ia
+.claude
+.agents
