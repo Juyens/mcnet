@@ -1,6 +1,7 @@
 from typing import Self
 
 from mcnet.providers.http import Http
+from mcnet.providers.protocols import Downloader
 from mcnet.providers.registry import Providers
 
 _USER_AGENT = "juyens/mcnet (joseph.juliuscb@gmail.com)"
@@ -16,6 +17,11 @@ class Session:
     @property
     def providers(self) -> Providers:
         return self._providers
+
+    @property
+    def downloader(self) -> Downloader:
+        """The same client the providers use, narrowed to fetching files."""
+        return self._http
 
     def __enter__(self) -> Self:
         return self

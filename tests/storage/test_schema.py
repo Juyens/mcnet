@@ -103,6 +103,28 @@ def test_a_missing_field_names_itself(tmp_path: Path, missing: str) -> None:
         manifest.load_manifest(folder)
 
 
+def test_an_unknown_loader_is_rejected(tmp_path: Path) -> None:
+    folder = write(
+        tmp_path, "schema: 1\nloader: forge\nmc_version: 1.21.4\nport: 25565\n"
+    )
+
+    with pytest.raises(McnetError, match="'forge' is not server software"):
+        manifest.load_manifest(folder)
+
+
+def test_an_unknown_loader_lists_the_ones_that_work(tmp_path: Path) -> None:
+    folder = write(
+        tmp_path, "schema: 1\nloader: spigot\nmc_version: 1.21.4\nport: 25565\n"
+    )
+
+    with pytest.raises(McnetError) as caught:
+        manifest.load_manifest(folder)
+
+    assert caught.value.hint is not None
+    assert "paper" in caught.value.hint
+    assert "velocity" in caught.value.hint
+
+
 def test_a_manifest_without_plugins_loads(tmp_path: Path) -> None:
     folder = write(tmp_path, "schema: 1\nloader: paper\nmc_version: 1.21.4\nport: 1\n")
 

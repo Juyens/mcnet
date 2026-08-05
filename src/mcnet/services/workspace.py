@@ -1,10 +1,10 @@
 import shutil
 from pathlib import Path
 
+from mcnet.domain import loaders
 from mcnet.domain.changes import ChangeSet
-from mcnet.domain.loaders import ProxyLoader
 from mcnet.errors import McnetError
-from mcnet.storage import discovery, manifest
+from mcnet.storage import discovery, lock, manifest
 from mcnet.storage.manifest import ProxyManifest, ServerManifest
 
 WORLD_NAME = "world"
@@ -21,7 +21,7 @@ def create(
     """Make the folder and its manifest, returning the path of the manifest."""
     target = available_path(name, root=root)
 
-    if loader in ProxyLoader:
+    if loaders.is_proxy(loader):
         target_manifest = ProxyManifest(loader=loader, mc_version=mc_version, port=port)
     else:
         target_manifest = ServerManifest(
@@ -84,7 +84,9 @@ def locate(name: str, root: Path | None = None) -> Path:
 
 
 def forget(folder: Path) -> Path:
-    """Drop the manifest, leaving every other file in place."""
+    """Drop the manifest and its lock, leaving every other file in place."""
+    lock.remove_lock(folder)
+
     return manifest.remove_manifest(folder)
 
 

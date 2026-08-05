@@ -28,6 +28,7 @@ def to_resolved(resources: list[VersionResource]) -> Resolved | None:
         hash=primary["hashes"]["sha512"],
         algorithm="sha512",
         version=version["version_number"],
+        size=primary["size"],
     )
 
 

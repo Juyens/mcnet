@@ -8,10 +8,13 @@ from typing import Any
 
 import httpx
 
-from mcnet.errors import McnetError
+from mcnet import hashing
+from mcnet.errors import McnetError, NotFoundError
 from mcnet.providers.protocols import QueryParams
 
 RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+
+PART_SUFFIX = ".part"
 
 
 def default_cache_dir() -> Path:
@@ -25,9 +28,17 @@ def default_cache_dir() -> Path:
 
 
 class Http:
-    def __init__(self, user_agent: str, cache_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        user_agent: str,
+        cache_dir: Path | None = None,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
         self._client = httpx.Client(
-            headers={"User-Agent": user_agent}, timeout=20, follow_redirects=True
+            headers={"User-Agent": user_agent},
+            timeout=20,
+            follow_redirects=True,
+            transport=transport,
         )
         self._cache_dir = cache_dir or default_cache_dir()
 
@@ -41,7 +52,7 @@ class Http:
         response = self._request(url, params)
 
         if response.status_code == 404:
-            raise McnetError(f"not found: {url}")
+            raise NotFoundError(f"not found: {url}")
 
         try:
             response.raise_for_status()
@@ -58,8 +69,57 @@ class Http:
 
         return data
 
+    def download(self, url: str, dest: Path, *, expected: str, algorithm: str) -> bool:
+        """Fetch url into dest. False when dest already had the expected hash."""
+        if hashing.file_matches(dest, expected, algorithm):
+            return False
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        part = dest.with_name(dest.name + PART_SUFFIX)
+
+        try:
+            digest = self._stream(url, part, algorithm)
+
+            if digest != expected:
+                raise McnetError(
+                    f"hash mismatch for {dest.name}",
+                    hint="it changed upstream, resolve it again with 'mcnet sync'",
+                )
+
+            part.replace(dest)
+        except BaseException:
+            # Never leave half a jar behind: an interrupted download must not
+            # look like a finished one to the next sync.
+            part.unlink(missing_ok=True)
+            raise
+
+        return True
+
     def close(self) -> None:
         self._client.close()
+
+    def _stream(self, url: str, dest: Path, algorithm: str) -> str:
+        """Write the body to dest as it arrives, returning what it hashed to."""
+        hasher = hashing.new_hasher(algorithm)
+
+        try:
+            with self._client.stream("GET", url) as response:
+                if response.status_code == 404:
+                    raise NotFoundError(f"not found: {url}")
+
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    raise McnetError(f"{e.response.status_code} from {url}") from e
+
+                with dest.open("wb") as handle:
+                    for chunk in response.iter_bytes():
+                        handle.write(chunk)
+                        hasher.update(chunk)
+        except httpx.RequestError as e:
+            raise McnetError(f"cannot reach {url}") from e
+
+        return hasher.hexdigest()
 
     def _cache_path(self, url: str, params: QueryParams | None) -> Path:
         key = url + json.dumps(dict(params or {}), sort_keys=True)

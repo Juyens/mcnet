@@ -9,6 +9,7 @@ class Resolved:
     hash: str
     algorithm: str
     version: str
+    size: int | None = None
 
 
 @dataclass
@@ -42,20 +43,26 @@ class Target:
 
 
 @dataclass(frozen=True)
-class LockedPlugin:
+class LockedJar:
+    """A jar as it was resolved: enough to fetch and verify it again."""
+
     source: str
     version: str
     filename: str
     hash: str
     algorithm: str
     url: str
+    size: int | None = None
 
 
 @dataclass
 class LockFile:
+    """What one server resolved to, for the loader and version it says."""
+
     loader: str
     mc_version: str
-    plugins: dict[str, LockedPlugin] = field(default_factory=dict)
+    server: LockedJar | None = None
+    plugins: dict[str, LockedJar] = field(default_factory=dict)
 
 
 type AnyManifest = ServerManifest | ProxyManifest

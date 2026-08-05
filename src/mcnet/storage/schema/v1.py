@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import Any
 
-from mcnet.domain.loaders import ProxyLoader
+from mcnet.domain import loaders
 from mcnet.domain.models import (
     AnyManifest,
-    LockedPlugin,
+    LockedJar,
     LockFile,
     Plugin,
     ProxyManifest,
@@ -23,43 +23,87 @@ def manifest_to_dict(manifest: AnyManifest) -> dict[str, Any]:
 
 
 def manifest_from_dict(raw: dict[str, Any], path: Path) -> AnyManifest:
-    loader = _require(raw, "loader", path)
+    loader = _require_str(raw, "loader", path)
 
-    if loader in ProxyLoader:
+    # The loader picks which API the jar comes from, so an unknown one has to
+    # fail here rather than halfway through a sync.
+    if loader not in loaders.KNOWN:
+        raise McnetError(
+            f"{path}: '{loader}' is not server software mcnet knows",
+            hint=f"use one of {loaders.LISTING}",
+        )
+
+    if loaders.is_proxy(loader):
         return _proxy_from_dict(raw, path)
 
     return _server_from_dict(raw, path)
 
 
 def lock_to_dict(lock: LockFile) -> dict[str, Any]:
-    plugins = {}
-    for slug, entry in lock.plugins.items():
-        plugins[slug] = {
-            "source": entry.source,
-            "version": entry.version,
-            "filename": entry.filename,
-            "hash": entry.hash,
-            "algorithm": entry.algorithm,
-            "url": entry.url,
-        }
-
-    return {
+    raw: dict[str, Any] = {
         "schema": VERSION,
         "loader": lock.loader,
         "mc_version": lock.mc_version,
-        "plugins": plugins,
+        "plugins": {slug: _jar_to_dict(jar) for slug, jar in lock.plugins.items()},
     }
+
+    if lock.server is not None:
+        raw["server"] = _jar_to_dict(lock.server)
+
+    return raw
 
 
 def lock_from_dict(raw: dict[str, Any], path: Path) -> LockFile:
     return LockFile(
         loader=_require_str(raw, "loader", path),
         mc_version=_require_str(raw, "mc_version", path),
+        server=_locked_server(raw, path),
         plugins=_locked_plugins(raw, path),
     )
 
 
-def _locked_plugins(raw: dict[str, Any], path: Path) -> dict[str, Any]:
+def _jar_to_dict(jar: LockedJar) -> dict[str, Any]:
+    raw: dict[str, Any] = {
+        "source": jar.source,
+        "version": jar.version,
+        "filename": jar.filename,
+        "hash": jar.hash,
+        "algorithm": jar.algorithm,
+        "url": jar.url,
+    }
+
+    # Purpur publishes no size, so the key is absent rather than a fake zero.
+    if jar.size is not None:
+        raw["size"] = jar.size
+
+    return raw
+
+
+def _jar_from_dict(raw: dict[str, Any], path: Path) -> LockedJar:
+    return LockedJar(
+        source=_require_str(raw, "source", path),
+        version=_require_str(raw, "version", path),
+        filename=_require_str(raw, "filename", path),
+        hash=_require_str(raw, "hash", path),
+        algorithm=_require_str(raw, "algorithm", path),
+        url=_require_str(raw, "url", path),
+        size=_optional_int(raw, "size", path),
+    )
+
+
+def _locked_server(raw: dict[str, Any], path: Path) -> LockedJar | None:
+    entry = raw.get("server")
+
+    if entry is None:
+        return None
+
+    if not isinstance(entry, dict):
+        raise McnetError(f"{path} has a malformed server entry")
+
+    return _jar_from_dict(entry, path)
+
+
+def _locked_plugins(raw: dict[str, Any], path: Path) -> dict[str, LockedJar]:
     entries = raw.get("plugins") or {}
 
     if not isinstance(entries, dict):
@@ -71,14 +115,7 @@ def _locked_plugins(raw: dict[str, Any], path: Path) -> dict[str, Any]:
         if not isinstance(entry, dict):
             raise McnetError(f"{path} has a malformed entry for '{slug}'")
 
-        plugins[slug] = LockedPlugin(
-            source=_require_str(entry, "source", path),
-            version=_require_str(entry, "version", path),
-            filename=_require_str(entry, "filename", path),
-            hash=_require_str(entry, "hash", path),
-            algorithm=_require_str(entry, "algorithm", path),
-            url=_require_str(entry, "url", path),
-        )
+        plugins[slug] = _jar_from_dict(entry, path)
 
     return plugins
 
@@ -129,6 +166,13 @@ def _require_str(raw: dict[str, Any], key: str, path: Path) -> str:
         )
 
     return value
+
+
+def _optional_int(raw: dict[str, Any], key: str, path: Path) -> int | None:
+    if raw.get(key) is None:
+        return None
+
+    return _require_int(raw, key, path)
 
 
 def _require_int(raw: dict[str, Any], key: str, path: Path) -> int:

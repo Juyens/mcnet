@@ -7,14 +7,10 @@ from rich.theme import Theme
 from mcnet.domain.loaders import ProxyLoader, ServerLoader
 
 _LOADER_COLORS = {
-    "bukkit": "dark_blue",
-    "spigot": "yellow",
     "paper": "bright_white",
     "purpur": "bright_magenta",
     "folia": "bright_green",
     "velocity": "bright_blue",
-    "waterfall": "bright_black",
-    "bungeecord": "bright_black",
 }
 
 _LOADER_PATTERNS = []
