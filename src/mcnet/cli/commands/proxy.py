@@ -31,7 +31,7 @@ def create(
     port: Annotated[
         int,
         typer.Option(
-            "--port", "-p", help="Port the server listens on", min=1024, max=65535
+            "--port", "-p", help="Port the proxy listens on", min=1024, max=65535
         ),
     ] = 25565,
 ):
@@ -70,7 +70,7 @@ def edit(
     port: Annotated[
         int | None,
         typer.Option(
-            "--port", "-p", help="Port the server listens on", min=1024, max=65535
+            "--port", "-p", help="Port the proxy listens on", min=1024, max=65535
         ),
     ] = None,
 ):

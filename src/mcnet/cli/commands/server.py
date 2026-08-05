@@ -31,7 +31,7 @@ def create(
     port: Annotated[
         int,
         typer.Option(
-            "--port", "-p", help="P ort the server listens on", min=1024, max=65535
+            "--port", "-p", help="Port the server listens on", min=1024, max=65535
         ),
     ] = 25565,
 ):
