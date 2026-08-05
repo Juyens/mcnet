@@ -24,6 +24,19 @@ def find(name: str, root: Path | None = None) -> Path | None:
     return folder
 
 
+def current(root: Path | None = None) -> Path | None:
+    """The folder itself when it is a managed server, not one of its children.
+
+    Standing inside a server and asking for work should mean that server.
+    """
+    base = root or Path.cwd()
+
+    if not (base / MANIFEST_NAME).exists():
+        return None
+
+    return base
+
+
 def managed(root: Path | None = None) -> list[Path]:
     """Every folder under root that mcnet manages, in name order.
 

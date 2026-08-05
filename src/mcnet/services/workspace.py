@@ -3,6 +3,7 @@ from pathlib import Path
 
 from mcnet.domain import loaders
 from mcnet.domain.changes import ChangeSet
+from mcnet.domain.models import Target
 from mcnet.errors import McnetError
 from mcnet.storage import discovery, lock, manifest
 from mcnet.storage.manifest import ProxyManifest, ServerManifest
@@ -81,6 +82,40 @@ def available_path(name: str, *, root: Path | None = None) -> Path:
 
 def locate(name: str, root: Path | None = None) -> Path:
     return discovery.locate(name, root)
+
+
+def named(names: list[str], root: Path | None = None) -> tuple[list[Target], list[str]]:
+    """Targets for the names that exist here, and the names that do not.
+
+    A typo in the fifth name should not cancel the other four, so the misses
+    come back to be reported rather than raised.
+    """
+    targets, unknown = [], []
+
+    for name in names:
+        folder = discovery.find(name, root)
+
+        if folder is None:
+            unknown.append(name)
+        else:
+            targets.append(Target(name, folder))
+
+    return targets, unknown
+
+
+def here(root: Path | None = None) -> Target | None:
+    """The server we are standing in, if we are standing in one."""
+    folder = discovery.current(root)
+
+    if folder is None:
+        return None
+
+    return Target(folder.name, folder)
+
+
+def everything(root: Path | None = None) -> list[Target]:
+    """Every server managed under root, in name order."""
+    return [Target(folder.name, folder) for folder in discovery.managed(root)]
 
 
 def forget(folder: Path) -> Path:

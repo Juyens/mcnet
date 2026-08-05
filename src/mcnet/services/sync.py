@@ -18,7 +18,7 @@ from mcnet.progress import NullSink, ProgressSink
 from mcnet.providers.protocols import Downloader
 from mcnet.providers.registry import Providers
 from mcnet.services import jars
-from mcnet.storage import discovery, lock, manifest
+from mcnet.storage import lock, manifest
 from mcnet.storage.cache import JarCache
 
 SERVER_SOURCE = "papermc"
@@ -34,22 +34,6 @@ class Job:
     report: ServerSync
     path: Path
     entry: LockedJar
-
-
-def targets(name: str | None, root: Path | None = None) -> list[Target]:
-    """The server asked for, or every one managed here."""
-    if name is not None:
-        return [Target(name, discovery.locate(name, root))]
-
-    folders = discovery.managed(root)
-
-    if not folders:
-        raise McnetError(
-            "no servers are managed here",
-            hint="create one with 'mcnet server create', or cd into your network",
-        )
-
-    return [Target(folder.name, folder) for folder in folders]
 
 
 def sync(

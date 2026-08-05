@@ -2,7 +2,7 @@ from typing import Annotated
 
 import typer
 
-from mcnet.cli import context
+from mcnet.cli import context, prompts
 from mcnet.cli.handler import handle
 from mcnet.cli.render import log, progress
 from mcnet.domain.results import ServerSync
@@ -12,18 +12,27 @@ from mcnet.services import sync as service
 @handle
 def run(
     ctx: typer.Context,
-    name: Annotated[
-        str | None,
-        typer.Argument(help="Server to sync, or every one here"),
+    names: Annotated[
+        list[str] | None,
+        typer.Argument(help="Servers to sync, or every one here"),
     ] = None,
     jobs: Annotated[
         int,
         typer.Option("--jobs", "-j", help="Downloads to run at once", min=1, max=32),
     ] = service.DEFAULT_WORKERS,
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Do not ask before syncing all")
+    ] = False,
 ):
     """Install what the manifests declare: server jars and plugins."""
     current = context.session(ctx)
-    targets = service.targets(name)
+    targets, unknown = prompts.select(names or [], action="sync", yes=yes)
+
+    for name in unknown:
+        log.err(f"no server named '{name}'")
+
+    if not targets:
+        raise typer.Exit(code=1)
 
     with progress.RichSink() as sink:
         result = service.sync(
@@ -38,7 +47,7 @@ def run(
     for server in result.servers:
         _report(server)
 
-    if result.failed:
+    if result.failed or unknown:
         raise typer.Exit(code=1)
 
 

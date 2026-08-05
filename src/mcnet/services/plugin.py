@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from mcnet.domain.models import AnyManifest, LockedJar, Plugin, Resolved, Target
+from mcnet.domain.models import AnyManifest, LockedJar, Plugin, Resolved
 from mcnet.domain.results import AddResult, Failed, Incompatible, RemoveResult
 from mcnet.errors import McnetError
 from mcnet.providers.protocols import Downloader
 from mcnet.providers.registry import Providers
 from mcnet.providers.urls import parse_plugin_url
-from mcnet.services import jars
-from mcnet.storage import discovery, lock, manifest
+from mcnet.services import jars, workspace
+from mcnet.storage import lock, manifest
 
 
 def add(
@@ -26,7 +26,7 @@ def add(
     provider = providers.for_source(source)
 
     result = AddResult(slug=slug)
-    targets, result.unknown = _split_targets(names)
+    targets, result.unknown = workspace.named(names)
 
     if not targets:
         raise McnetError(
@@ -92,7 +92,7 @@ def remove(slug: str, names: list[str], *, delete_jar: bool = True) -> RemoveRes
     Keeping the jar leaves a file nothing declares any more, which mcnet will
     not touch again: that is the point of the option, not an oversight.
     """
-    targets, unknown = _split_targets(names)
+    targets, unknown = workspace.named(names)
 
     if not targets:
         raise McnetError(
@@ -164,20 +164,6 @@ def _record(
     lock.save_lock(locked, folder)
 
     return entry
-
-
-def _split_targets(names: list[str]) -> tuple[list[Target], list[str]]:
-    targets, unknown = [], []
-
-    for name in names:
-        folder = discovery.find(name)
-
-        if folder is None:
-            unknown.append(name)
-        else:
-            targets.append(Target(name, folder))
-
-    return targets, unknown
 
 
 def _has_plugin(target: AnyManifest, slug: str) -> bool:
