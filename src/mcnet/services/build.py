@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from mcnet import process
 from mcnet.domain import java, loaders
 from mcnet.domain.models import AnyManifest, LockFile, Target
 from mcnet.domain.results import BuildResult, ServerBuild
@@ -118,17 +117,6 @@ def _boot(
     if locked.server is None:
         return
 
-    wanted = java.required(declared.loader, declared.mc_version)
-    found = process.installed()
-
-    if found is None:
-        report.problem = f"Java {wanted} is needed to generate the rest, none found"
-        return
-
-    if found < wanted:
-        report.problem = f"needs Java {wanted}, found Java {found}"
-        return
-
     runtime = java.runtime(declared.java, declared.loader)
     command = runtime.command(
         locked.server.filename, nogui=java.takes_nogui(declared.loader)
@@ -139,6 +127,7 @@ def _boot(
             target.folder,
             command,
             stop=PROXY_STOP if proxy else STOP_COMMAND,
+            needs_java=java.required(declared.loader, declared.mc_version),
             watch=None if watch is None else lambda line: watch(target.name, line),
         )
     except McnetError as e:

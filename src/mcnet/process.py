@@ -21,7 +21,12 @@ _VERSION = re.compile(r'version "(\d+)(?:\.(\d+))?')
 
 
 class Runner(Protocol):
-    """Anything that can run a server until it is ready and then stop it."""
+    """Anything that can run a server until it is ready and then stop it.
+
+    Whether a usable Java is around is the runner's problem, not the caller's:
+    a fake has no use for one, and asking the machine before delegating would
+    make every test depend on what happens to be installed.
+    """
 
     def boot(
         self,
@@ -29,6 +34,7 @@ class Runner(Protocol):
         command: list[str],
         *,
         stop: str,
+        needs_java: int,
         watch: Callable[[str], None] | None = None,
     ) -> None: ...
 
@@ -42,8 +48,11 @@ class Java:
         command: list[str],
         *,
         stop: str,
+        needs_java: int,
         watch: Callable[[str], None] | None = None,
     ) -> None:
+        self._require(needs_java)
+
         process = subprocess.Popen(
             command,
             cwd=folder,
@@ -63,6 +72,19 @@ class Java:
             raise
         finally:
             guard.cancel()
+
+    def _require(self, needs_java: int) -> None:
+        """Refuse in words, since the JVM's own complaint is a stack trace."""
+        found = installed()
+
+        if found is None:
+            raise McnetError(
+                f"Java {needs_java} is needed to start a server, and none was found",
+                hint="install it, or set JAVA_HOME to point at it",
+            )
+
+        if found < needs_java:
+            raise McnetError(f"needs Java {needs_java}, found Java {found}")
 
     def _watch(
         self,

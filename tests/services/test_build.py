@@ -20,6 +20,7 @@ class FakeRunner:
         self.breaks = breaks
         self.commands: list[list[str]] = []
         self.stops: list[str] = []
+        self.needed: list[int] = []
 
     def boot(
         self,
@@ -27,10 +28,12 @@ class FakeRunner:
         command: list[str],
         *,
         stop: str,
+        needs_java: int,
         watch: Callable[[str], None] | None = None,
     ) -> None:
         self.commands.append(command)
         self.stops.append(stop)
+        self.needed.append(needs_java)
 
         if self.breaks is not None:
             raise McnetError(self.breaks)
@@ -309,3 +312,36 @@ def test_a_server_without_a_jar_says_to_sync(tmp_path: Path, monkeypatch) -> Non
     assert report.problem is not None
     assert "sync" in report.problem
     assert runner.commands == []
+
+
+def test_the_runner_is_told_which_java_it_needs(lobby: Path) -> None:
+    """The gate lives behind the seam, or every test would need a real JVM."""
+    _, runner = run(lobby)
+
+    assert runner.needed == [21]
+
+
+def test_a_proxy_asks_for_its_own_floor(hub: Path) -> None:
+    _, runner = run(hub)
+
+    assert runner.needed == [17]
+
+
+def test_an_older_minecraft_asks_for_an_older_java(lobby: Path) -> None:
+    declared = manifest.load_manifest(lobby)
+    declared.mc_version = "1.18.2"
+    manifest.save_manifest(declared, lobby)
+
+    _, runner = run(lobby)
+
+    assert runner.needed == [17]
+
+
+def test_a_runner_refusing_on_java_is_reported(lobby: Path) -> None:
+    report, _ = run(lobby, FakeRunner(breaks="needs Java 21, found Java 17"))
+
+    assert report.problem == "needs Java 21, found Java 17"
+    assert not report.generated
+    # Everything that is only a file is still there to run once Java is right.
+    assert (lobby / scripts.SHELL_NAME).exists()
+    assert (lobby / settings.PROPERTIES_NAME).exists()
