@@ -1,5 +1,3 @@
-import sys
-
 import typer
 
 from mcnet.cli.render import log
@@ -59,10 +57,10 @@ def _confirm_all(found: list[Target], *, action: str, default: bool) -> list[Tar
     try:
         answered = _ask(f"{action} all of them?", default=default)
     except (typer.Abort, EOFError) as e:
-        # Piped or scripted: Click would abort with a bare 'Aborted.', which
-        # says nothing about how to get the job done.
+        # Nothing to read: Click would stop with a bare 'Aborted.', which says
+        # nothing about how to get the job done.
         raise McnetError(
-            "more than one server here and no terminal to ask with",
+            "more than one server here and nothing to answer with",
             hint=f"pass -y, or {named}",
         ) from e
 
@@ -81,7 +79,10 @@ def confirm(question: str, *, default: bool) -> bool:
 
 
 def _ask(question: str, *, default: bool) -> bool:
-    if not sys.stdin.isatty():
-        raise EOFError(question)
+    """Read an answer from wherever stdin is, terminal or not.
 
+    'echo y | mcnet build' is a real way to answer, so this does not check for
+    a terminal first: with nothing to read the call ends in Abort, which the
+    callers turn into something more useful than Click's bare 'Aborted.'.
+    """
     return typer.confirm(question, default=default, err=True)
