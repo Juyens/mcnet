@@ -1,5 +1,6 @@
 from mcnet.domain.loaders import LISTING, ProxyLoader, ServerLoader
 from mcnet.errors import McnetError
+from mcnet.providers.hangar import HangarAPI
 from mcnet.providers.modrinth import ModrinthAPI
 from mcnet.providers.papermc import PaperMcAPI
 from mcnet.providers.protocols import JsonClient, Provider, ServerSource
@@ -11,11 +12,13 @@ class Providers:
 
     def __init__(self, http: JsonClient) -> None:
         self.modrinth = ModrinthAPI(http)
+        self.hangar = HangarAPI(http)
         self.papermc = PaperMcAPI(http)
         self.purpur = PurpurAPI(http)
 
         self._by_source: dict[str, Provider] = {
             "modrinth": self.modrinth,
+            "hangar": self.hangar,
         }
 
         self._by_loader: dict[str, ServerSource] = {
