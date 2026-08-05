@@ -1,3 +1,4 @@
+import hashlib
 import random
 import threading
 import time
@@ -6,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from mcnet import hashing
 from mcnet.domain.models import Plugin
 from mcnet.errors import McnetError
 from mcnet.progress import NullTask, ProgressTask
@@ -13,9 +15,23 @@ from mcnet.providers.protocols import QueryParams
 from mcnet.providers.registry import Providers
 from mcnet.services import jars, sync, workspace
 from mcnet.storage import lock, manifest
+from mcnet.storage.cache import JarCache
+
+# Stand-in jars with real digests, so sync runs its own hashing rather than
+# trusting a fake to say what is already in place.
+BLOBS: dict[str, bytes] = {}
+
+
+def _publish(filename: str, algorithm: str) -> str:
+    body = f"pretend this is {filename}".encode()
+    digest = hashlib.new(algorithm, body).hexdigest()
+    BLOBS[digest] = body
+
+    return digest
+
 
 PAPER_JAR = "paper-1.21.4-232.jar"
-PLUGIN_JAR = "LuckPerms-Bukkit-5.5.53.jar"
+PAPER_HASH = _publish(PAPER_JAR, "sha256")
 
 PAPER_BUILDS = [
     {
@@ -25,29 +41,47 @@ PAPER_BUILDS = [
         "downloads": {
             "server:default": {
                 "name": PAPER_JAR,
-                "checksums": {"sha256": "beef"},
+                "checksums": {"sha256": PAPER_HASH},
                 "size": 51_437_498,
-                "url": "https://fill-data.papermc.io/v1/objects/beef/" + PAPER_JAR,
+                "url": "https://fill-data.papermc.io/v1/objects/x/" + PAPER_JAR,
             }
         },
     }
 ]
 
-MODRINTH_VERSIONS = [
-    {
-        "version_number": "5.5.53",
-        "date_published": "2026-01-01T00:00:00Z",
-        "files": [
-            {
-                "primary": True,
-                "filename": PLUGIN_JAR,
-                "url": "https://cdn.modrinth.com/" + PLUGIN_JAR,
-                "hashes": {"sha1": "aa", "sha512": "4f3c"},
-                "size": 1_490_252,
-            }
-        ],
-    }
-]
+
+def jar_of(slug: str) -> str:
+    return f"{slug}-1.0.0.jar"
+
+
+def versions_of(slug: str) -> list[dict[str, Any]]:
+    """Each slug gets its own bytes, so hashes differ the way they really do."""
+    filename = jar_of(slug)
+
+    return [
+        {
+            "version_number": "1.0.0",
+            "date_published": "2026-01-01T00:00:00Z",
+            "files": [
+                {
+                    "primary": True,
+                    "filename": filename,
+                    "url": "https://cdn.modrinth.com/" + filename,
+                    "hashes": {"sha1": "aa", "sha512": _publish(filename, "sha512")},
+                    "size": 1_490_252,
+                }
+            ],
+        }
+    ]
+
+
+PLUGIN_JAR = jar_of("luckperms")
+
+MODRINTH_VERSIONS = versions_of("luckperms")
+
+
+def slug_of(url: str) -> str:
+    return url.split("/project/")[1].split("/")[0]
 
 
 class FakeHttp:
@@ -60,14 +94,17 @@ class FakeHttp:
             return PAPER_BUILDS
 
         if "modrinth.com" in url:
-            return MODRINTH_VERSIONS
+            return versions_of(slug_of(url))
 
         raise AssertionError(f"unexpected url: {url}")
 
 
 class FakeDownloader:
+    """Counts calls apart from real fetches, the way Http tells them apart."""
+
     def __init__(self) -> None:
         self.calls: list[Path] = []
+        self.fetched = 0
 
     def download(
         self,
@@ -80,17 +117,23 @@ class FakeDownloader:
     ) -> bool:
         self.calls.append(dest)
 
-        if dest.exists():
+        if hashing.file_matches(dest, expected, algorithm):
             return False
 
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(b"jar")
+        dest.write_bytes(BLOBS[expected])
+        self.fetched += 1
 
         return True
 
 
 def providers() -> Providers:
     return Providers(FakeHttp())
+
+
+def cache() -> JarCache:
+    """Rooted in the test's own cwd, so nothing touches the real cache."""
+    return JarCache(Path("_cache"))
 
 
 @pytest.fixture
@@ -111,7 +154,7 @@ def declare(folder: Path, slug: str, source: str = "modrinth") -> None:
 
 def run(name: str | None = None, root: Path | None = None) -> Any:
     downloader = FakeDownloader()
-    result = sync.sync(sync.targets(name, root), providers(), downloader)
+    result = sync.sync(sync.targets(name, root), providers(), downloader, cache())
 
     return result, downloader
 
@@ -217,7 +260,7 @@ def test_a_fresh_clone_needs_no_provider(network: Path) -> None:
             raise AssertionError("sync should not have called an API")
 
     downloader = FakeDownloader()
-    result = sync.sync(sync.targets("lobby"), Providers(Refuses()), downloader)
+    result = sync.sync(sync.targets("lobby"), Providers(Refuses()), downloader, cache())
 
     assert sorted(result.servers[0].downloaded) == sorted([PAPER_JAR, PLUGIN_JAR])
 
@@ -277,7 +320,9 @@ def test_a_plugin_that_resolves_to_nothing_is_reported(network: Path) -> None:
             return PAPER_BUILDS if "papermc.io" in url else []
 
     downloader = FakeDownloader()
-    result = sync.sync(sync.targets("lobby"), Providers(NoVersions()), downloader)
+    result = sync.sync(
+        sync.targets("lobby"), Providers(NoVersions()), downloader, cache()
+    )
     report = result.servers[0]
 
     assert [failure.name for failure in report.failed] == ["luckperms"]
@@ -294,7 +339,9 @@ def test_the_server_jar_still_lands_when_a_plugin_fails(network: Path) -> None:
         ) -> Any:
             return PAPER_BUILDS if "papermc.io" in url else []
 
-    result = sync.sync(sync.targets("lobby"), Providers(NoVersions()), FakeDownloader())
+    result = sync.sync(
+        sync.targets("lobby"), Providers(NoVersions()), FakeDownloader(), cache()
+    )
 
     assert (network / "lobby" / PAPER_JAR).exists()
     assert result.servers[0].downloaded == [PAPER_JAR]
@@ -306,7 +353,9 @@ def test_an_unreachable_api_is_reported_not_raised() -> None:
         def get_json(self, *args: Any, **kwargs: Any) -> Any:
             raise McnetError("cannot reach https://fill.papermc.io/v3")
 
-    result = sync.sync(sync.targets("lobby"), Providers(Down()), FakeDownloader())
+    result = sync.sync(
+        sync.targets("lobby"), Providers(Down()), FakeDownloader(), cache()
+    )
 
     assert [failure.name for failure in result.servers[0].failed] == ["paper"]
     assert result.failed
@@ -343,10 +392,10 @@ class SlowDownloader:
             self._live -= 1
 
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(b"jar")
+        dest.write_bytes(BLOBS[expected])
 
         if task is not None:
-            task.advance(3)
+            task.advance(len(BLOBS[expected]))
 
         return True
 
@@ -357,7 +406,7 @@ def test_downloads_really_overlap(network: Path) -> None:
 
     downloader = SlowDownloader(workers=4)
 
-    sync.sync(sync.targets("lobby"), providers(), downloader, workers=4)
+    sync.sync(sync.targets("lobby"), providers(), downloader, cache(), workers=4)
 
     assert downloader.peak == 4
 
@@ -365,7 +414,9 @@ def test_downloads_really_overlap(network: Path) -> None:
 def test_a_single_worker_still_fetches_everything(network: Path) -> None:
     declare(network / "lobby", "luckperms")
 
-    result = sync.sync(sync.targets("lobby"), providers(), FakeDownloader(), workers=1)
+    result = sync.sync(
+        sync.targets("lobby"), providers(), FakeDownloader(), cache(), workers=1
+    )
 
     assert sorted(result.servers[0].downloaded) == sorted([PAPER_JAR, PLUGIN_JAR])
 
@@ -382,7 +433,7 @@ def test_results_follow_the_plan_not_the_finish_order(network: Path) -> None:
             jar.unlink()
 
         result = sync.sync(
-            sync.targets("lobby"), providers(), ShuffledDownloader(), workers=8
+            sync.targets("lobby"), providers(), ShuffledDownloader(), cache(), workers=8
         )
         seen.append(result.servers[0].downloaded)
 
@@ -403,7 +454,7 @@ class ShuffledDownloader:
     ) -> bool:
         time.sleep(random.uniform(0, 0.02))
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(b"jar")
+        dest.write_bytes(BLOBS[expected])
 
         return True
 
@@ -412,7 +463,7 @@ def test_the_sink_is_told_about_every_job(network: Path) -> None:
     declare(network / "lobby", "luckperms")
 
     sink = RecordingSink()
-    sync.sync(sync.targets("lobby"), providers(), FakeDownloader(), sink=sink)
+    sync.sync(sync.targets("lobby"), providers(), FakeDownloader(), cache(), sink=sink)
 
     assert sink.jobs == 2
     assert sorted(sink.labels) == sorted([PAPER_JAR, PLUGIN_JAR])
@@ -437,3 +488,90 @@ class RecordingSink:
 
     def finish(self) -> None:
         self.finished = True
+
+
+# --- the cache ------------------------------------------------------------
+
+
+def three_paper_servers(network: Path) -> None:
+    for name in ("survival", "creative"):
+        workspace.create(
+            name, loader="paper", mc_version="1.21.4", port=25566, root=network
+        )
+
+    for name in ("lobby", "survival", "creative"):
+        declare(network / name, "luckperms")
+
+
+def test_a_shared_jar_is_fetched_once_for_the_whole_network(network: Path) -> None:
+    three_paper_servers(network)
+
+    downloader = FakeDownloader()
+    result = sync.sync(sync.targets(None), providers(), downloader, cache())
+
+    # Three servers, two jars each, but only two distinct artifacts.
+    assert sum(len(server.downloaded) for server in result.servers) == 6
+    assert len(downloader.calls) == 2
+
+
+def test_every_server_still_gets_its_own_copy(network: Path) -> None:
+    three_paper_servers(network)
+
+    sync.sync(sync.targets(None), providers(), FakeDownloader(), cache())
+
+    for name in ("lobby", "survival", "creative"):
+        assert (network / name / PAPER_JAR).exists()
+        assert (network / name / jars.PLUGINS_DIR / PLUGIN_JAR).exists()
+
+
+def test_a_warm_cache_needs_no_download_at_all(network: Path) -> None:
+    three_paper_servers(network)
+    shared = cache()
+    sync.sync(sync.targets(None), providers(), FakeDownloader(), shared)
+
+    for jar in network.rglob("*.jar"):
+        jar.unlink()
+
+    downloader = FakeDownloader()
+    result = sync.sync(sync.targets(None), providers(), downloader, shared)
+
+    assert sum(len(server.downloaded) for server in result.servers) == 6
+    assert downloader.fetched == 0
+
+
+def test_a_jar_that_will_not_download_is_reported_for_every_server(
+    network: Path,
+) -> None:
+    three_paper_servers(network)
+
+    class Broken(FakeDownloader):
+        def download(
+            self,
+            url: str,
+            dest: Path,
+            *,
+            expected: str,
+            algorithm: str,
+            task: ProgressTask | None = None,
+        ) -> bool:
+            if PLUGIN_JAR in url:
+                raise McnetError(f"hash mismatch for {PLUGIN_JAR}")
+
+            return super().download(
+                url, dest, expected=expected, algorithm=algorithm, task=task
+            )
+
+    result = sync.sync(sync.targets(None), providers(), Broken(), cache())
+
+    assert all(len(server.failed) == 1 for server in result.servers)
+    assert all(server.downloaded == [PAPER_JAR] for server in result.servers)
+
+
+def test_the_progress_counts_distinct_jars_not_jobs(network: Path) -> None:
+    three_paper_servers(network)
+
+    sink = RecordingSink()
+    sync.sync(sync.targets(None), providers(), FakeDownloader(), cache(), sink=sink)
+
+    assert sink.jobs == 2
+    assert sorted(sink.labels) == sorted([PAPER_JAR, PLUGIN_JAR])

@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
+from mcnet import hashing
 from mcnet.domain.models import (
     AnyManifest,
     LockedJar,
@@ -18,6 +19,7 @@ from mcnet.providers.protocols import Downloader
 from mcnet.providers.registry import Providers
 from mcnet.services import jars
 from mcnet.storage import discovery, lock, manifest
+from mcnet.storage.cache import JarCache
 
 SERVER_SOURCE = "papermc"
 
@@ -54,6 +56,7 @@ def sync(
     targets: list[Target],
     providers: Providers,
     downloader: Downloader,
+    cache: JarCache,
     *,
     workers: int = DEFAULT_WORKERS,
     sink: ProgressSink | None = None,
@@ -73,7 +76,7 @@ def sync(
         result.servers.append(report)
         jobs.extend(_plan(target, providers, report))
 
-    _fetch_all(jobs, downloader, workers, sink or NullSink())
+    _fetch_all(jobs, downloader, cache, workers, sink or NullSink())
 
     return result
 
@@ -203,32 +206,112 @@ def _resolve(
 
 
 def _fetch_all(
-    jobs: list[Job], downloader: Downloader, workers: int, sink: ProgressSink
+    jobs: list[Job],
+    downloader: Downloader,
+    cache: JarCache,
+    workers: int,
+    sink: ProgressSink,
 ) -> None:
-    """Fetch every job at once, then file the outcomes in the order asked.
+    """Fetch each distinct jar once, then put copies wherever they belong.
 
-    Workers touch nothing shared: each returns its outcome and the reports are
-    filled in afterwards, so a run always prints the same thing twice even
-    though the downloads finish in whatever order they please.
+    A network of five paper servers declares the same plugin five times, so
+    the work is keyed by hash rather than by job: the pool fetches the unique
+    set into the cache, and every job is served from there.
+
+    Workers touch nothing shared, and the reports are filled afterwards in the
+    order asked, so two runs print the same thing even though the downloads
+    finish in whatever order they please.
     """
-    if not jobs:
-        return
-
-    sink.start(len(jobs))
     outcomes: dict[int, tuple[bool, str | None]] = {}
+    wanted: list[tuple[int, Job]] = []
+
+    for index, job in enumerate(jobs):
+        if hashing.file_matches(job.path, job.entry.hash, job.entry.algorithm):
+            outcomes[index] = (False, None)
+        else:
+            wanted.append((index, job))
+
+    if wanted:
+        failures = _fill_cache(wanted, downloader, cache, workers, sink)
+        _place(wanted, cache, failures, outcomes)
+
+    _file_outcomes(jobs, outcomes)
+
+
+def _fill_cache(
+    wanted: list[tuple[int, Job]],
+    downloader: Downloader,
+    cache: JarCache,
+    workers: int,
+    sink: ProgressSink,
+) -> dict[str, str]:
+    """Get every distinct jar into the cache, reporting what would not come."""
+    unique: dict[str, LockedJar] = {}
+
+    for _, job in wanted:
+        unique.setdefault(job.entry.hash, job.entry)
+
+    failures: dict[str, str] = {}
+    sink.start(len(unique))
 
     try:
-        with ThreadPoolExecutor(max_workers=min(workers, len(jobs))) as pool:
+        with ThreadPoolExecutor(max_workers=min(workers, len(unique))) as pool:
             running = {
-                pool.submit(_fetch_one, downloader, job, sink): index
-                for index, job in enumerate(jobs)
+                pool.submit(_fetch_one, downloader, cache, entry, sink): digest
+                for digest, entry in unique.items()
             }
 
             for future in as_completed(running):
-                outcomes[running[future]] = future.result()
+                failure = future.result()
+
+                if failure is not None:
+                    failures[running[future]] = failure
     finally:
         sink.finish()
 
+    return failures
+
+
+def _fetch_one(
+    downloader: Downloader, cache: JarCache, entry: LockedJar, sink: ProgressSink
+) -> str | None:
+    task = sink.task(entry.filename, entry.size)
+
+    try:
+        jars.install(downloader, cache.path(entry), entry, task)
+    except McnetError as e:
+        return str(e)
+    finally:
+        task.done()
+
+    return None
+
+
+def _place(
+    wanted: list[tuple[int, Job]],
+    cache: JarCache,
+    failures: dict[str, str],
+    outcomes: dict[int, tuple[bool, str | None]],
+) -> None:
+    for index, job in wanted:
+        failure = failures.get(job.entry.hash)
+
+        if failure is not None:
+            outcomes[index] = (False, failure)
+            continue
+
+        try:
+            cache.take(job.entry, job.path)
+        except McnetError as e:
+            outcomes[index] = (False, str(e))
+            continue
+
+        outcomes[index] = (True, None)
+
+
+def _file_outcomes(
+    jobs: list[Job], outcomes: dict[int, tuple[bool, str | None]]
+) -> None:
     for index, job in enumerate(jobs):
         fetched, failure = outcomes[index]
 
@@ -238,19 +321,6 @@ def _fetch_all(
             job.report.downloaded.append(job.entry.filename)
         else:
             job.report.current.append(job.entry.filename)
-
-
-def _fetch_one(
-    downloader: Downloader, job: Job, sink: ProgressSink
-) -> tuple[bool, str | None]:
-    task = sink.task(job.entry.filename, job.entry.size)
-
-    try:
-        return jars.install(downloader, job.path, job.entry, task), None
-    except McnetError as e:
-        return False, str(e)
-    finally:
-        task.done()
 
 
 def _sweep(folder: Path, stale: set[str], report: ServerSync) -> None:

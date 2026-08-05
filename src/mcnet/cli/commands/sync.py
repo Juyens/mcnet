@@ -30,6 +30,7 @@ def run(
             targets,
             current.providers,
             current.downloader,
+            current.cache,
             workers=jobs,
             sink=sink,
         )
