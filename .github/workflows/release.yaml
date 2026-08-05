@@ -32,7 +32,22 @@ jobs:
       - name: Rename for the target system
         run: mv dist/${{ matrix.built }} dist/${{ matrix.asset }}
         shell: bash
+      - name: Take this version's notes from the changelog
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $1 == "##" && $2 == v { found = 1; next }
+            found && $1 == "##"   { exit }
+            found                 { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no '## $version' section" >&2
+            exit 1
+          fi
+          cat notes.md
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/${{ matrix.asset }}
+          body_path: notes.md
