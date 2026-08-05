@@ -64,5 +64,18 @@ class LockFile:
     server: LockedJar | None = None
     plugins: dict[str, LockedJar] = field(default_factory=dict)
 
+    def matches(self, loader: str, mc_version: str) -> bool:
+        """False when the server moved on and everything needs resolving again."""
+        return self.loader == loader and self.mc_version == mc_version
+
+    def filenames(self) -> set[str]:
+        """Every jar this lock accounts for."""
+        names = {jar.filename for jar in self.plugins.values()}
+
+        if self.server is not None:
+            names.add(self.server.filename)
+
+        return names
+
 
 type AnyManifest = ServerManifest | ProxyManifest

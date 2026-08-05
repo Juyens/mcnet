@@ -24,6 +24,25 @@ def find(name: str, root: Path | None = None) -> Path | None:
     return folder
 
 
+def managed(root: Path | None = None) -> list[Path]:
+    """Every folder under root that mcnet manages, in name order.
+
+    Sorted so a sync over a network reports its servers the same way twice.
+    """
+    base = root or Path.cwd()
+
+    if not base.is_dir():
+        return []
+
+    folders = []
+
+    for entry in sorted(base.iterdir()):
+        if entry.is_dir() and (entry / MANIFEST_NAME).exists():
+            folders.append(entry)
+
+    return folders
+
+
 def locate(name: str, root: Path | None = None) -> Path:
     """Same as find, but fails when there is nothing there."""
     folder = find(name, root)

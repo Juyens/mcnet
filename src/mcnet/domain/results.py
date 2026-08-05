@@ -28,6 +28,30 @@ class AddResult:
 
 
 @dataclass
+class ServerSync:
+    """What one sync did to one server. Names here are filenames."""
+
+    name: str
+    downloaded: list[str] = field(default_factory=list)
+    current: list[str] = field(default_factory=list)
+    removed: list[str] = field(default_factory=list)
+    failed: list[Failed] = field(default_factory=list)
+
+    @property
+    def touched(self) -> bool:
+        return bool(self.downloaded or self.removed)
+
+
+@dataclass
+class SyncResult:
+    servers: list[ServerSync] = field(default_factory=list)
+
+    @property
+    def failed(self) -> bool:
+        return any(server.failed for server in self.servers)
+
+
+@dataclass
 class RemoveResult:
     slug: str
     removed: list[str] = field(default_factory=list)
