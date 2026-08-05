@@ -17,14 +17,40 @@ OVERALL = "downloading"
 
 BAR_WIDTH = 24
 
+# A typical plugin is one to five megabytes and lands in well under a second.
+# Above this a download lasts long enough to be worth watching.
+MIN_BAR_SIZE = 8 * 1024 * 1024
 
-class _Bar:
+
+def shows_bar(total: int | None) -> bool:
+    """Whether a file of this size earns a row of its own.
+
+    An unknown size gets one: Purpur publishes none and ships 54MB, so the
+    absence of a number says nothing about how long the wait will be.
+    """
+    return total is None or total >= MIN_BAR_SIZE
+
+
+class _Counted:
+    """Counts towards the whole without a row of its own."""
+
+    def __init__(self, progress: Progress, overall: TaskID) -> None:
+        self._progress = progress
+        self._overall = overall
+
+    def advance(self, amount: int) -> None:
+        return None
+
+    def done(self) -> None:
+        self._progress.advance(self._overall, 1)
+
+
+class _Bar(_Counted):
     """One file's row. Rich guards its own state, so threads share this safely."""
 
     def __init__(self, progress: Progress, task: TaskID, overall: TaskID) -> None:
-        self._progress = progress
+        super().__init__(progress, overall)
         self._task = task
-        self._overall = overall
 
     def advance(self, amount: int) -> None:
         self._progress.advance(self._task, amount)
@@ -33,7 +59,7 @@ class _Bar:
         # Finished rows leave, so syncing 500 jars never shows more than the
         # workers actually running, with the overall counter on top.
         self._progress.remove_task(self._task)
-        self._progress.advance(self._overall, 1)
+        super().done()
 
 
 class RichSink:
@@ -68,6 +94,9 @@ class RichSink:
     def task(self, label: str, total: int | None) -> ProgressTask:
         if self._overall is None:
             return NullTask()
+
+        if not shows_bar(total):
+            return _Counted(self._progress, self._overall)
 
         return _Bar(
             self._progress,

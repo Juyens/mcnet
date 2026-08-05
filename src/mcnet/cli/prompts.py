@@ -49,7 +49,7 @@ def select(
 
 def _confirm_all(found: list[Target], *, action: str, default: bool) -> list[Target]:
     example = " ".join(target.name for target in found[:2])
-    named = f"name the ones you want:  mcnet {action} {example}"
+    named = f"name the ones you want: mcnet {action} {example}"
 
     log.question(f"found {len(found)} servers here")
     log.question("  " + ", ".join(target.name for target in found))
