@@ -144,18 +144,3 @@ def delete(
     workspace.delete(folder)
 
     log.ok(f"deleted {display_path(folder)}")
-
-
-@app.command()
-def connect():
-    pass
-
-
-@app.command()
-def disconnect():
-    pass
-
-
-@app.command()
-def show():
-    pass

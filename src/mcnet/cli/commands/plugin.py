@@ -102,13 +102,3 @@ def remove(
 
     if result.unknown or result.failed:
         raise typer.Exit(code=1)
-
-
-@app.command()
-def show():
-    pass
-
-
-@app.command()
-def search():
-    pass

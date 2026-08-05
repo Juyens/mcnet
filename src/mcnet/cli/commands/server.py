@@ -147,8 +147,3 @@ def delete(
     workspace.delete(folder)
 
     log.ok(f"deleted {display_path(folder)}")
-
-
-@app.command()
-def show():
-    pass
