@@ -1,7 +1,8 @@
 from pathlib import Path
 from typing import Any
 
-from mcnet.domain import loaders
+from mcnet.domain import java, loaders, validation
+from mcnet.domain.java import JavaSettings
 from mcnet.domain.models import (
     AnyManifest,
     LockedJar,
@@ -121,18 +122,13 @@ def _locked_plugins(raw: dict[str, Any], path: Path) -> dict[str, LockedJar]:
 
 
 def _proxy_to_dict(manifest: ProxyManifest) -> dict[str, Any]:
-    plugins = []
-    for plugin in manifest.plugins:
-        plugins.append({"slug": plugin.slug, "source": plugin.source})
+    raw = _server_to_dict(manifest)
+    plugins = raw.pop("plugins")
 
-    return {
-        "schema": VERSION,
-        "loader": manifest.loader,
-        "mc_version": manifest.mc_version,
-        "port": manifest.port,
-        "servers": manifest.servers,
-        "plugins": plugins,
-    }
+    raw["servers"] = manifest.servers
+    raw["plugins"] = plugins
+
+    return raw
 
 
 def _server_to_dict(manifest: ServerManifest) -> dict[str, Any]:
@@ -140,13 +136,78 @@ def _server_to_dict(manifest: ServerManifest) -> dict[str, Any]:
     for plugin in manifest.plugins:
         plugins.append({"slug": plugin.slug, "source": plugin.source})
 
-    return {
+    raw: dict[str, Any] = {
         "schema": VERSION,
         "loader": manifest.loader,
         "mc_version": manifest.mc_version,
         "port": manifest.port,
-        "plugins": plugins,
     }
+
+    _add_java(raw, manifest)
+    raw["plugins"] = plugins
+
+    return raw
+
+
+def _add_java(raw: dict[str, Any], manifest: ServerManifest) -> None:
+    """Only write the block when it says something the loader would not."""
+    if manifest.java is None:
+        return
+
+    java: dict[str, Any] = {}
+
+    if manifest.java.memory is not None:
+        java["memory"] = manifest.java.memory
+
+    if manifest.java.flags is not None:
+        java["flags"] = manifest.java.flags
+
+    if java:
+        raw["java"] = java
+
+
+def _java(raw: dict[str, Any], path: Path) -> JavaSettings | None:
+    block = raw.get("java")
+
+    if block is None:
+        return None
+
+    if not isinstance(block, dict):
+        raise McnetError(f"{path}: 'java' must be a block with memory or flags")
+
+    return JavaSettings(memory=_memory(block, path), flags=_java_flags(block, path))
+
+
+def _memory(block: dict[str, Any], path: Path) -> str | None:
+    if block.get("memory") is None:
+        return None
+
+    memory = _require_str(block, "memory", path)
+    problem = validation.memory_problem(memory)
+
+    if problem is not None:
+        raise McnetError(f"{path}: {problem}")
+
+    return memory
+
+
+def _java_flags(block: dict[str, Any], path: Path) -> str | list[str] | None:
+    flags = block.get("flags")
+
+    if flags is None or isinstance(flags, str):
+        return flags
+
+    if not isinstance(flags, list):
+        raise McnetError(
+            f"{path}: 'flags' must be a preset name or a list of flags",
+            hint=f"presets: {', '.join(java.PRESETS)}",
+        )
+
+    for flag in flags:
+        if not isinstance(flag, str):
+            raise McnetError(f"{path}: '{flag}' is not a flag")
+
+    return flags
 
 
 def _require(raw: dict[str, Any], key: str, path: Path) -> Any:
@@ -188,6 +249,7 @@ def _server_from_dict(raw: dict[str, Any], path: Path) -> ServerManifest:
     return ServerManifest(
         loader=_require_str(raw, "loader", path),
         port=_require_int(raw, "port", path),
+        java=_java(raw, path),
         plugins=_plugins(raw, path),
         mc_version=_require_str(raw, "mc_version", path),
     )
@@ -198,6 +260,7 @@ def _proxy_from_dict(raw: dict[str, Any], path: Path) -> ProxyManifest:
         loader=_require_str(raw, "loader", path),
         port=_require_int(raw, "port", path),
         mc_version=_require_str(raw, "mc_version", path),
+        java=_java(raw, path),
         servers=_servers(raw, path),
         plugins=_plugins(raw, path),
     )

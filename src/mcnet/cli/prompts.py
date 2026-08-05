@@ -72,6 +72,14 @@ def _confirm_all(found: list[Target], *, action: str, default: bool) -> list[Tar
     raise McnetError("nothing to do", hint=named)
 
 
+def confirm(question: str, *, default: bool) -> bool:
+    """Ask a yes or no, refusing rather than hanging when nobody can answer."""
+    try:
+        return _ask(question, default=default)
+    except typer.Abort, EOFError:
+        return False
+
+
 def _ask(question: str, *, default: bool) -> bool:
     if not sys.stdin.isatty():
         raise EOFError(question)

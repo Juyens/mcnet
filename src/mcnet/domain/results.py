@@ -52,6 +52,29 @@ class SyncResult:
 
 
 @dataclass
+class ServerBuild:
+    """What one build left behind, and what stopped it if anything did."""
+
+    name: str
+    written: list[str] = field(default_factory=list)
+    generated: bool = False
+    skipped: bool = False
+    eula_pending: bool = False
+    problem: str | None = None
+
+
+@dataclass
+class BuildResult:
+    servers: list[ServerBuild] = field(default_factory=list)
+
+    @property
+    def failed(self) -> bool:
+        return any(
+            server.problem is not None or server.eula_pending for server in self.servers
+        )
+
+
+@dataclass
 class RemoveResult:
     slug: str
     removed: list[str] = field(default_factory=list)

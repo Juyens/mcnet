@@ -31,11 +31,20 @@ _RESERVED_NAMES = frozenset(
     }
 )
 
+_MEMORY = re.compile(r"^\d+[MG]\Z", re.IGNORECASE)
+
 MAX_NAME_LENGTH = 32
 
 
 def is_version_shape(value: str) -> bool:
     return _VERSION.match(value) is not None
+
+
+def memory_problem(value: str) -> str | None:
+    if _MEMORY.match(value) is None:
+        return f"'{value}' is not a heap size, write it like 4G or 512M"
+
+    return None
 
 
 def name_problem(value: str) -> str | None:

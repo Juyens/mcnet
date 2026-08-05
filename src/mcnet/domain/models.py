@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from mcnet.domain.java import JavaSettings
+
 
 @dataclass(frozen=True)
 class Resolved:
@@ -28,6 +30,7 @@ class ServerManifest(BaseManifest):
     loader: str
     mc_version: str
     port: int
+    java: JavaSettings | None = None
     plugins: list[Plugin] = field(default_factory=list)
 
 
