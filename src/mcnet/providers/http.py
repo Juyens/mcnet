@@ -10,6 +10,7 @@ import httpx
 
 from mcnet import hashing
 from mcnet.errors import McnetError, NotFoundError
+from mcnet.progress import ProgressTask
 from mcnet.providers.protocols import QueryParams
 
 RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
@@ -69,7 +70,15 @@ class Http:
 
         return data
 
-    def download(self, url: str, dest: Path, *, expected: str, algorithm: str) -> bool:
+    def download(
+        self,
+        url: str,
+        dest: Path,
+        *,
+        expected: str,
+        algorithm: str,
+        task: ProgressTask | None = None,
+    ) -> bool:
         """Fetch url into dest. False when dest already had the expected hash."""
         if hashing.file_matches(dest, expected, algorithm):
             return False
@@ -78,7 +87,7 @@ class Http:
         part = dest.with_name(dest.name + PART_SUFFIX)
 
         try:
-            digest = self._stream(url, part, algorithm)
+            digest = self._stream(url, part, algorithm, task)
 
             if digest != expected:
                 raise McnetError(
@@ -98,7 +107,9 @@ class Http:
     def close(self) -> None:
         self._client.close()
 
-    def _stream(self, url: str, dest: Path, algorithm: str) -> str:
+    def _stream(
+        self, url: str, dest: Path, algorithm: str, task: ProgressTask | None
+    ) -> str:
         """Write the body to dest as it arrives, returning what it hashed to."""
         hasher = hashing.new_hasher(algorithm)
 
@@ -116,6 +127,9 @@ class Http:
                     for chunk in response.iter_bytes():
                         handle.write(chunk)
                         hasher.update(chunk)
+
+                        if task is not None:
+                            task.advance(len(chunk))
         except httpx.RequestError as e:
             raise McnetError(f"cannot reach {url}") from e
 

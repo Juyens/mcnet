@@ -76,7 +76,7 @@ def add(
             continue
 
         try:
-            jars.install(downloader, target.folder, entry)
+            jars.install(downloader, jars.plugin_path(target.folder, entry), entry)
         except McnetError as e:
             result.failed.append(Failed(name=target.name, reason=str(e)))
             continue
@@ -117,7 +117,7 @@ def remove(slug: str, names: list[str], *, delete_jar: bool = True) -> RemoveRes
         # a jar nothing declares is invisible to mcnet from then on.
         if delete_jar and entry is not None:
             try:
-                if jars.uninstall(target.folder, entry):
+                if jars.uninstall(jars.plugin_path(target.folder, entry)):
                     result.deleted.append(target.name)
             except McnetError as e:
                 result.failed.append(Failed(name=target.name, reason=str(e)))

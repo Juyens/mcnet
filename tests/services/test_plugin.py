@@ -5,6 +5,7 @@ import pytest
 
 from mcnet.domain.models import Plugin
 from mcnet.errors import McnetError
+from mcnet.progress import ProgressTask
 from mcnet.providers.protocols import QueryParams
 from mcnet.providers.registry import Providers
 from mcnet.services import jars, plugin, workspace
@@ -49,7 +50,15 @@ class FakeDownloader:
         self.error = error
         self.calls: list[Path] = []
 
-    def download(self, url: str, dest: Path, *, expected: str, algorithm: str) -> bool:
+    def download(
+        self,
+        url: str,
+        dest: Path,
+        *,
+        expected: str,
+        algorithm: str,
+        task: ProgressTask | None = None,
+    ) -> bool:
         if self.error is not None:
             raise self.error
 

@@ -7,6 +7,11 @@ _out = Console(highlighter=McnetHighlighter(), theme=THEME, markup=False)
 _err = Console(stderr=True, highlighter=McnetHighlighter(), theme=THEME, markup=False)
 
 
+def console() -> Console:
+    """The one console mcnet writes to, for anything that draws its own frames."""
+    return _out
+
+
 _INDENT = "  "
 
 

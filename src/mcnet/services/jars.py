@@ -2,6 +2,7 @@ from pathlib import Path
 
 from mcnet.domain.models import LockedJar
 from mcnet.errors import McnetError
+from mcnet.progress import ProgressTask
 from mcnet.providers.protocols import Downloader
 
 PLUGINS_DIR = "plugins"
@@ -12,20 +13,29 @@ def plugin_path(folder: Path, entry: LockedJar) -> Path:
     return folder / PLUGINS_DIR / entry.filename
 
 
-def install(downloader: Downloader, folder: Path, entry: LockedJar) -> bool:
-    """Put the jar in the server's plugins folder. False if it was already there."""
+def server_path(folder: Path, entry: LockedJar) -> Path:
+    """The server or proxy jar sits at the root, next to its manifest."""
+    return folder / entry.filename
+
+
+def install(
+    downloader: Downloader,
+    path: Path,
+    entry: LockedJar,
+    task: ProgressTask | None = None,
+) -> bool:
+    """Put the jar where it belongs. False if it was already there and correct."""
     return downloader.download(
         entry.url,
-        plugin_path(folder, entry),
+        path,
         expected=entry.hash,
         algorithm=entry.algorithm,
+        task=task,
     )
 
 
-def uninstall(folder: Path, entry: LockedJar) -> bool:
-    """Take the jar out of the plugins folder. False if it was not there."""
-    path = plugin_path(folder, entry)
-
+def uninstall(path: Path) -> bool:
+    """Take a jar off disk. False if it was not there."""
     if not path.exists():
         return False
 
@@ -33,7 +43,7 @@ def uninstall(folder: Path, entry: LockedJar) -> bool:
         path.unlink()
     except OSError as e:
         raise McnetError(
-            f"could not delete {entry.filename}: {e.strerror or e}",
+            f"could not delete {path.name}: {e.strerror or e}",
             hint="stop the server if it is running",
         ) from e
 

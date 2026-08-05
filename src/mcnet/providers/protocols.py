@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from mcnet.domain.models import Resolved
+from mcnet.progress import ProgressTask
 
 type QueryParams = Mapping[str, str | int | float | bool | None]
 
@@ -21,7 +22,15 @@ class JsonClient(Protocol):
 class Downloader(Protocol):
     """Anything able to fetch a file and vouch for it. Http is the real one."""
 
-    def download(self, url: str, dest: Path, *, expected: str, algorithm: str) -> bool:
+    def download(
+        self,
+        url: str,
+        dest: Path,
+        *,
+        expected: str,
+        algorithm: str,
+        task: ProgressTask | None = None,
+    ) -> bool:
         """Fetch url into dest. False when dest already had the expected hash."""
         ...
 
