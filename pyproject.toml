@@ -1,7 +1,7 @@
 [project]
 name = "mcnet"
 license = "MIT"
-version = "0.1.0"
+version = "0.2.0"
 description = "Declarative manager for Minecraft server networks: a manifest per server, a lockfile, and reproducible installs of server jars and plugins."
 readme = "README.md"
 requires-python = ">=3.14"
