@@ -53,8 +53,8 @@ def _confirm_all(found: list[Target], *, action: str, default: bool) -> list[Tar
     example = " ".join(target.name for target in found[:2])
     named = f"name the ones you want:  mcnet {action} {example}"
 
-    log.info(f"found {len(found)} servers here")
-    log.detail(", ".join(target.name for target in found))
+    log.question(f"found {len(found)} servers here")
+    log.question("  " + ", ".join(target.name for target in found))
 
     try:
         answered = _ask(f"{action} all of them?", default=default)
@@ -76,4 +76,4 @@ def _ask(question: str, *, default: bool) -> bool:
     if not sys.stdin.isatty():
         raise EOFError(question)
 
-    return typer.confirm(question, default=default)
+    return typer.confirm(question, default=default, err=True)

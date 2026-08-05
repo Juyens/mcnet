@@ -27,6 +27,15 @@ def detail(message: str) -> None:
     _out.print(_INDENT + message)
 
 
+def question(message: str) -> None:
+    """Context for something we are about to ask.
+
+    Goes to stderr with the prompt itself, so 'mcnet sync > log.txt' does not
+    swallow the question and leave the terminal looking stuck.
+    """
+    _err.print(message)
+
+
 def hint(message: str) -> None:
     _write(_err, ">", "bright_black", message)
 
